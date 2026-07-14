@@ -13,6 +13,7 @@ dependencies = [
     "scipy>=1.11",
     "shapely>=2.0",
     "mapbox-earcut>=1.0",
+    "networkx>=3.0",
     "rtree>=1.1",
     "ezdxf>=1.1",
     "fast-simplification>=0.1.7",
