@@ -25,6 +25,12 @@ def test_decimate_percent(small_sphere):
     assert len(m.faces) <= 320 * 0.35
 
 
+def test_decimate_face_count_tem_piso(small_sphere):
+    # face_count explícito abaixo do piso não pode gerar malha degenerada
+    m = apply_op(small_sphere, {"type": "decimate", "params": {"face_count": 1}})
+    assert len(m.faces) >= 4
+
+
 def test_hull_fecha_perfil(c_channel):
     m = apply_op(c_channel, {"type": "hull"})
     # é exatamente por isso que hull em perfil aberto precisa de aviso:

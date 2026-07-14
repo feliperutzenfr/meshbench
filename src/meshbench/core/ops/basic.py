@@ -20,8 +20,10 @@ def op_remove(mesh):
 def op_decimate(mesh, face_count=None, percent=None):
     """Decimação quádrica. Alvo absoluto (face_count) ou % do original (percent)."""
     if face_count is None:
-        face_count = max(4, int(len(mesh.faces) * (percent or 25.0) / 100.0))
-    return mesh.simplify_quadric_decimation(face_count=int(face_count))
+        pct = 25.0 if percent is None else percent
+        face_count = len(mesh.faces) * pct / 100.0
+    face_count = max(4, int(face_count))
+    return mesh.simplify_quadric_decimation(face_count=face_count)
 
 
 def op_hull(mesh):
