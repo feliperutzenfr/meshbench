@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "meshbench"
+version = "0.1.0"
+description = "Editor e conversor de malha 3D para software de projeto de móveis (Promob e outros)"
+requires-python = ">=3.11"
+dependencies = [
+    "trimesh>=4.0",
+    "numpy>=1.26",
+    "scipy>=1.11",
+    "shapely>=2.0",
+    "mapbox-earcut>=1.0",
+    "rtree>=1.1",
+    "ezdxf>=1.1",
+    "fast-simplification>=0.1.7",
+    "lxml>=5.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+meshbench = "meshbench.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-m 'not slow'"
+markers = [
+    "slow: testes de regressão com os arquivos reais (rode com: pytest -m slow)",
+]
