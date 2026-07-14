@@ -1,3 +1,4 @@
+import numpy as np
 import trimesh
 
 from meshbench.core.analyze.components import (
@@ -31,3 +32,15 @@ def test_split_agrupa_identicos(box, small_sphere):
 def test_familia_bbox_por_instancia(box):
     fams = split_components(box)
     assert fams[0].bbox == [[-5.0, -10.0, -15.0], [5.0, 10.0, 15.0]]
+
+
+def test_split_solda_vertices_de_sopa_de_triangulos(box):
+    # sopa não-soldada: 36 vértices duplicados, nenhum compartilhado entre faces
+    soup = trimesh.Trimesh(
+        vertices=box.triangles.reshape(-1, 3),
+        faces=np.arange(36).reshape(-1, 3),
+        process=False,
+    )
+    fams = split_components(soup)
+    assert len(fams) == 1
+    assert fams[0].instances == 1

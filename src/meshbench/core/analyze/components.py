@@ -22,7 +22,7 @@ class ComponentFamily:
 
     id: str
     signature: str
-    meshes: list
+    meshes: list[trimesh.Trimesh]
 
     @property
     def instances(self):
