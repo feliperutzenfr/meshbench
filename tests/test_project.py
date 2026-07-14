@@ -54,7 +54,9 @@ def test_rematch_preserva_escolhas(tmp_path, box, small_sphere):
     cyl = trimesh.creation.cylinder(radius=5, height=40)
     cyl.apply_translation([0, 200, 0])
     scene2 = trimesh.util.concatenate([box.copy(), cyl])
+    n_antes = len(p.components)
     p2, avisos = rematch(p, split_components(scene2))
+    assert len(p.components) == n_antes  # rematch não muta o projeto original
 
     caixa2 = [c for c in p2.components if c.face_count == 12][0]
     assert caixa2.user_label == "metalon"

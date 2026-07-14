@@ -7,7 +7,7 @@ o rematch por assinatura preserva essas escolhas após re-export do CAD.
 
 import hashlib
 import json
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
 
 from meshbench.core.analyze.classify import SUGGESTED_OP, classify
@@ -69,7 +69,7 @@ class Project:
     name: str
     source: dict
     scale: dict = field(default_factory=lambda: dict(DEFAULT_SCALE))
-    components: list = field(default_factory=list)
+    components: list[ComponentEntry] = field(default_factory=list)
     groups: list = field(default_factory=list)
     orient: dict = field(default_factory=lambda: dict(DEFAULT_ORIENT))
     origin: dict = field(default_factory=lambda: dict(DEFAULT_ORIGIN))
@@ -77,9 +77,7 @@ class Project:
     version: int = 1
 
     def to_dict(self):
-        d = asdict(self)
-        d["components"] = [asdict(c) if not isinstance(c, dict) else c for c in self.components]
-        return d
+        return asdict(self)
 
     @classmethod
     def from_dict(cls, d):
@@ -113,7 +111,7 @@ def _entry_from_family(fam, group):
 
 def new_project(name, source_path, mesh, families):
     """Receita inicial: sugestões preenchidas, tudo num grupo 'saida'. O usuário edita."""
-    unit, motivo = guess_unit(mesh)
+    unit, reason = guess_unit(mesh)
     detected = unit or "mm"
     return Project(
         name=name,
@@ -121,7 +119,7 @@ def new_project(name, source_path, mesh, families):
             "path": str(source_path),
             "sha256": sha256_of(source_path),
             "detected_units": detected,
-            "detection_note": motivo,
+            "detection_note": reason,
             "units": detected,  # o que o USUÁRIO confirmou (editável)
         },
         scale={**DEFAULT_SCALE, "from_unit": detected},
@@ -133,10 +131,11 @@ def new_project(name, source_path, mesh, families):
 def rematch(project, families):
     """Casa famílias novas com a receita por assinatura, preservando escolhas do usuário.
 
-    Retorna (projeto_atualizado, avisos). Famílias sem par entram como
-    needs_review=True; entradas cuja peça sumiu são removidas e reportadas.
+    Retorna (projeto_novo, avisos) — o projeto original NÃO é modificado.
+    Famílias sem par entram como needs_review=True; entradas cuja peça
+    sumiu são removidas e reportadas.
     """
-    avisos = []
+    warnings_list = []
     by_sig = {c.signature: c for c in project.components}
     new_components = []
     matched = set()
@@ -162,10 +161,9 @@ def rematch(project, families):
             e = _entry_from_family(fam, group=None)
             e.needs_review = True
             new_components.append(e)
-            avisos.append(f"componente novo — revisar: {fam.signature}")
+            warnings_list.append(f"componente novo — revisar: {fam.signature}")
     for c in project.components:
         if c.signature not in matched:
-            rotulo = c.user_label or c.auto_class
-            avisos.append(f"componente sumiu do source: {rotulo} ({c.signature})")
-    project.components = new_components
-    return project, avisos
+            label = c.user_label or c.auto_class
+            warnings_list.append(f"componente sumiu do source: {label} ({c.signature})")
+    return replace(project, components=new_components), warnings_list
