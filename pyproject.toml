@@ -34,6 +34,11 @@ where = ["src"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-m 'not slow'"
+filterwarnings = [
+    # o starlette >=0.4x prefere httpx2; seguimos com httpx (funcional) até
+    # decidirmos a troca de dependência — ver testclient.py do starlette
+    "ignore:Using `httpx` with `starlette.testclient` is deprecated:Warning",
+]
 markers = [
     "slow: testes de regressão com os arquivos reais (rode com: pytest -m slow)",
 ]
