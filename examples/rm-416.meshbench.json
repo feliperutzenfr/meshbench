@@ -43,7 +43,7 @@
       "operation": {
         "type": "reextrude",
         "params": {
-          "tol": 0.4
+          "tol": 1.5
         }
       },
       "group": "saida",

@@ -18,7 +18,7 @@ Phase 1 (core engine + CLI) is implemented. Phases 2+ (FastAPI + Three.js viewpo
 
 ## What this project is
 
-**MeshPrep** (working name; repo is "meshbench") — a local web app to prepare 3D meshes exported from CAD (SolidWorks, Rhino…) for furniture-design software, primarily **Promob**. It imports STL/DXF/OBJ/PLY/3MF, lets the user split, simplify, scale, orient, and re-anchor parts, and exports **DXF R12 with `3DFACE` entities** (the validated Promob format). Every session is saved as a reproducible `*.meshprep.json` recipe.
+**MeshBench** — a local web app to prepare 3D meshes exported from CAD (SolidWorks, Rhino…) for furniture-design software, primarily **Promob**. It imports STL/DXF/OBJ/PLY/3MF, lets the user split, simplify, scale, orient, and re-anchor parts, and exports **DXF R12 with `3DFACE` entities** (the validated Promob format). Every session is saved as a reproducible `*.meshbench.json` recipe.
 
 **Core product principle: nothing is automatic and irreversible.** Geometric heuristics (part classification, unit detection) only *pre-fill suggestions*; the user always confirms by looking at the preview. STL carries no names/colors, so the user — not the algorithm — decides what each part is.
 
@@ -50,7 +50,7 @@ IMPORT → UNITS/SCALE → SPLIT → OPS (per part) → GROUP → ORIENT → ORI
 - Never `convex_hull` an open profile (it closes into a solid block) — warn in the UI.
 - Never quadric-decimate curved wire (destroys the tips) — use the `tube` reconstruction (geodesic centerline via Dijkstra + parallel transport frames), not plane slicing.
 - For `reextrude`, probe N slices and take the **largest-area** section (avoids slicing through a hole).
-- Mirroring must be followed by `mesh.invert()` to fix winding.
+- Mirroring: trimesh >=4.x auto-corrects winding on negative-determinant transforms — do NOT add `mesh.invert()` after mirror (double-flip); the architecture doc's Annex A.7 predates this.
 - Multi-group exports that fit together need a **common origin** (`mode: "common"`), not per-group.
 - Validator: every component must be in a group or explicitly removed, or it silently disappears from the output.
 
