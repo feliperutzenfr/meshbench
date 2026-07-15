@@ -22,8 +22,10 @@ def display_records(records, budget=DISPLAY_BUDGET):
         target = max(100, int(len(r.mesh.faces) * ratio))
         try:
             m = r.mesh.simplify_quadric_decimation(face_count=target)
-        except Exception:
-            m = r.mesh  # exibir cheio é melhor que não exibir
+        except (ValueError, RuntimeError, ImportError):
+            # fallback: exibir cheio é melhor que não exibir; erros de
+            # programação devem estourar
+            m = r.mesh
         out.append(replace(r, mesh=m))
     return out
 
