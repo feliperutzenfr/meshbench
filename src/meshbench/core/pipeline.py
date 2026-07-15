@@ -25,23 +25,45 @@ FACE_BUDGET = 15000  # empírico: acima disso o Promob pode não abrir
 _SIG_RE = re.compile(r"^f(\d+):v(\d+):b\[([^,\]]+),([^,\]]+),([^\]]+)\]$")
 
 
-def _signature_at_scale(entry, factor):
-    """Recalcula a assinatura esperada de uma peça da receita após a escala do run.
-
-    `entry.signature` foi capturado com `split_components` sobre o mesh cru
-    (fator 1, em `new_project`); aqui o SPLIT roda sobre o mesh já escalado
-    (§4 — SCALE vem antes de SPLIT), então o bbox embutido na assinatura
-    precisa ser reescalado na mesma proporção antes de comparar, senão nenhuma
-    peça casa quando `scale` não for identidade.
-    """
-    m = _SIG_RE.match(entry.signature)
+def _parse_signature(sig):
+    """Assinatura 'f{faces}:v{verts}:b[dx,dy,dz]' → (faces, verts, [dx, dy, dz])."""
+    m = _SIG_RE.match(sig)
     if not m:
-        return entry.signature
+        return None
     faces, verts, dx, dy, dz = m.groups()
-    d = np.round(
-        [float(dx) * factor[0], float(dy) * factor[1], float(dz) * factor[2]], 1
-    )
-    return f"f{faces}:v{verts}:b[{d[0]},{d[1]},{d[2]}]"
+    return int(faces), int(verts), [float(dx), float(dy), float(dz)]
+
+
+def _match_entry(fam, components, factor):
+    """Casa uma família do SPLIT (pós-escala) com uma entrada da receita (pré-escala).
+
+    A assinatura da receita foi capturada sobre o mesh cru (fator 1, em
+    `new_project`) e o bbox embutido já vem arredondado a 1 casa; comparar por
+    string reconstruída falha por arredondamento duplo (round(cru,1)*fator ≠
+    round(cru*fator,1) com fator grande, ex. in→mm). Por isso: contagens de
+    faces/vértices casam EXATAS (invariantes à escala) e o bbox casa por
+    tolerância por eixo — |dim_receita*fator - dim_família| ≤ 0.06*fator + 0.06
+    (cobre os dois arredondamentos de 1 casa). Empate nas contagens → vence o
+    menor desvio máximo por eixo.
+    """
+    parsed_fam = _parse_signature(fam.signature)
+    best, best_dev = None, None
+    for entry in components:
+        parsed = _parse_signature(entry.signature)
+        if parsed is None or parsed_fam is None:
+            if entry.signature == fam.signature:
+                return entry
+            continue
+        if parsed[0] != parsed_fam[0] or parsed[1] != parsed_fam[1]:
+            continue
+        devs = [
+            abs(parsed[2][i] * factor[i] - parsed_fam[2][i]) for i in range(3)
+        ]
+        if all(d <= 0.06 * factor[i] + 0.06 for i, d in enumerate(devs)):
+            worst = max(devs)
+            if best is None or worst < best_dev:
+                best, best_dev = entry, worst
+    return best
 
 
 @dataclass
@@ -89,14 +111,13 @@ def run(project, base_dir):
 
     # 3. SPLIT
     families = split_components(mesh)
-    by_sig = {_signature_at_scale(c, factor): c for c in project.components}
 
     # 4. OPS + 5. GROUP
     group_names = [g["name"] for g in project.groups] or ["saida"]
     grouped = {g: [] for g in group_names}
     feature_meshes = {}  # component id -> meshes processadas (p/ feature_ref da origem)
     for fam in families:
-        entry = by_sig.get(fam.signature)
+        entry = _match_entry(fam, project.components, factor)
         if entry is None:
             warnings.append(
                 f"componente {fam.signature} não está na receita — fora da saída"

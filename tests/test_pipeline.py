@@ -76,3 +76,18 @@ def test_pipeline_avisa_dimensao_absurda(tmp_path, box, small_sphere):
     p.scale = {"mode": "uniform", "value": 1000.0}
     res = run(p, tmp_path)
     assert any("confira a unidade" in w for w in res.warnings)
+
+
+def test_pipeline_escala_com_dimensao_fracionaria(tmp_path):
+    # Regressão: a assinatura da receita guarda o bbox JÁ arredondado a 1 casa;
+    # com fator grande (in→mm 25.4) round(cru,1)*fator ≠ round(cru*fator,1) e o
+    # match exato por string derrubava a peça silenciosamente.
+    caixa = trimesh.creation.box(extents=[12.34, 20.0, 30.0])
+    src = tmp_path / "caixa.stl"
+    caixa.export(str(src))
+    p = new_project("teste", src, caixa, split_components(caixa))
+    p.source["path"] = "caixa.stl"
+    p.scale = {"mode": "unit_convert", "from_unit": "in", "to_unit": "mm"}
+    res = run(p, tmp_path)
+    assert len(res.files) == 1
+    assert not any("não está na receita" in w for w in res.warnings)
