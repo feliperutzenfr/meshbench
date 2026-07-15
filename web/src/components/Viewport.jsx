@@ -1,13 +1,26 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { groupColor } from "../lib/palette.js";
 
+// Libera geometrias e materiais de uma subárvore da cena (GLTF, helpers, marcador).
+function disposeSceneResources(root) {
+  root.traverse((obj) => {
+    obj.geometry?.dispose();
+    const m = obj.material;
+    if (Array.isArray(m)) m.forEach((x) => x.dispose());
+    else m?.dispose();
+  });
+}
+
 export default function Viewport({ state }) {
   const mountRef = useRef(null);
+  const [erro, setErro] = useState(null);
 
   useEffect(() => {
+    setErro(null);
+    let cancelled = false;
     const mount = mountRef.current;
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x16161a);
@@ -35,52 +48,66 @@ export default function Viewport({ state }) {
     const groupOf = {};
     for (const c of state.components) groupOf[c.id] = c.group;
 
-    new GLTFLoader().load("/api/project/geometry", (gltf) => {
-      gltf.scene.traverse((obj) => {
-        if (obj.isMesh) {
-          const compId = obj.name.split(".")[0];
-          obj.material = new THREE.MeshStandardMaterial({
-            color: groupColor(groupOf[compId], groupNames),
-            metalness: 0.1,
-            roughness: 0.75,
-            side: THREE.DoubleSide,
-          });
+    new GLTFLoader().load(
+      "/api/project/geometry",
+      (gltf) => {
+        if (cancelled) {
+          disposeSceneResources(gltf.scene);
+          return;
         }
-      });
-      scene.add(gltf.scene);
+        gltf.scene.traverse((obj) => {
+          if (obj.isMesh) {
+            const compId = obj.name.split(".")[0];
+            obj.material = new THREE.MeshStandardMaterial({
+              color: groupColor(groupOf[compId], groupNames),
+              metalness: 0.1,
+              roughness: 0.75,
+              side: THREE.DoubleSide,
+            });
+          }
+        });
+        scene.add(gltf.scene);
 
-      const box = new THREE.Box3().setFromObject(gltf.scene);
-      const size = box.getSize(new THREE.Vector3());
-      const center = box.getCenter(new THREE.Vector3());
-      const radius = Math.max(size.x, size.y, size.z, 1);
+        const box = new THREE.Box3().setFromObject(gltf.scene);
+        const size = box.getSize(new THREE.Vector3());
+        const center = box.getCenter(new THREE.Vector3());
+        const radius = Math.max(size.x, size.y, size.z, 1);
 
-      // grid no plano XY (chão da convenção Z-up)
-      const grid = new THREE.GridHelper(radius * 3, 30, 0x3a3a46, 0x26262e);
-      grid.rotation.x = Math.PI / 2; // GridHelper nasce em XZ; deitar para XY
-      scene.add(grid);
+        // grid no plano XY (chão da convenção Z-up)
+        const grid = new THREE.GridHelper(radius * 3, 30, 0x3a3a46, 0x26262e);
+        grid.rotation.x = Math.PI / 2; // GridHelper nasce em XZ; deitar para XY
+        scene.add(grid);
 
-      // marcador de origem: quadrado vermelho em (0,0,0), como o Promob mostra
-      const marker = new THREE.Mesh(
-        new THREE.PlaneGeometry(radius * 0.04, radius * 0.04),
-        new THREE.MeshBasicMaterial({
-          color: 0xff2222,
-          side: THREE.DoubleSide,
-          depthTest: false,
-        }),
-      );
-      marker.renderOrder = 999;
-      scene.add(marker);
+        // marcador de origem: quadrado vermelho em (0,0,0), como o Promob mostra
+        const marker = new THREE.Mesh(
+          new THREE.PlaneGeometry(radius * 0.04, radius * 0.04),
+          new THREE.MeshBasicMaterial({
+            color: 0xff2222,
+            side: THREE.DoubleSide,
+            depthTest: false,
+          }),
+        );
+        marker.renderOrder = 999;
+        scene.add(marker);
 
-      scene.add(new THREE.AxesHelper(radius * 0.5));
+        scene.add(new THREE.AxesHelper(radius * 0.5));
 
-      camera.position.set(
-        center.x + radius * 1.2,
-        center.y - radius * 1.2,
-        center.z + radius * 0.9,
-      );
-      controls.target.copy(center);
-      controls.update();
-    });
+        if (!box.isEmpty()) {
+          camera.position.set(
+            center.x + radius * 1.2,
+            center.y - radius * 1.2,
+            center.z + radius * 0.9,
+          );
+          controls.target.copy(center);
+          controls.update();
+        }
+      },
+      undefined,
+      (err) => {
+        console.error("falha ao carregar /api/project/geometry", err);
+        if (!cancelled) setErro("falha ao carregar a geometria — veja o console");
+      },
+    );
 
     let frame;
     const animate = () => {
@@ -99,13 +126,19 @@ export default function Viewport({ state }) {
     ro.observe(mount);
 
     return () => {
+      cancelled = true;
       cancelAnimationFrame(frame);
       ro.disconnect();
       controls.dispose();
+      disposeSceneResources(scene);
       renderer.dispose();
       mount.removeChild(renderer.domElement);
     };
   }, [state]);
 
-  return <div className="viewport" ref={mountRef} />;
+  return (
+    <div className="viewport" ref={mountRef}>
+      {erro && <div className="viewport-erro">{erro}</div>}
+    </div>
+  );
 }

@@ -12,6 +12,7 @@ body { font-family: system-ui, sans-serif; background: #16161a; color: #e8e8ec; 
 .sidebar { grid-area: sidebar; overflow-y: auto; background: #1e1e24; padding: 12px; border-right: 1px solid #2c2c34; }
 .viewport-wrap { grid-area: viewport; position: relative; min-width: 0; min-height: 0; }
 .viewport { position: absolute; inset: 0; }
+.viewport-erro { position: absolute; inset: 0; display: grid; place-items: center; color: #e15759; font-size: 0.95rem; pointer-events: none; }
 .statusbar { grid-area: statusbar; background: #1e1e24; border-top: 1px solid #2c2c34; padding: 10px 14px; display: flex; gap: 24px; align-items: center; flex-wrap: wrap; }
 .tela-aviso { display: grid; place-items: center; height: 100%; font-size: 1.1rem; }
 
