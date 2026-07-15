@@ -5,7 +5,7 @@
 """
 
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 import numpy as np
@@ -72,6 +72,16 @@ class PipelineResult:
     warnings: list = field(default_factory=list)
 
 
+@dataclass
+class ProcessedComponent:
+    """Uma instância de peça já processada (pós-ops, pós-orientação, pós-origem)."""
+
+    component_id: str
+    label: str
+    group: str
+    mesh: object  # trimesh.Trimesh
+
+
 def apply_orient(mesh, orient):
     """remap de eixos → rotações (em ordem) → espelhos."""
     spec = orient.get("custom_remap") or orient.get("axis_remap", "identidade")
@@ -94,8 +104,8 @@ def apply_orient(mesh, orient):
     return m
 
 
-def run(project, base_dir):
-    """Executa a receita e exporta um arquivo por grupo. Retorna caminhos + avisos."""
+def process(project, base_dir):
+    """Executa as etapas 1-7 do pipeline e retorna (registros, warnings), sem exportar."""
     base_dir = Path(base_dir)
     warnings = []
 
@@ -120,8 +130,9 @@ def run(project, base_dir):
 
     # 4. OPS + 5. GROUP
     group_names = [g["name"] for g in project.groups] or ["saida"]
-    grouped = {g: [] for g in group_names}
+    records = []
     feature_meshes = {}  # component id -> meshes processadas (p/ feature_ref da origem)
+    known_groups = set(group_names)
     for fam in families:
         entry = _match_entry(fam, project.components, factor)
         if entry is None:
@@ -155,20 +166,26 @@ def run(project, base_dir):
                 f"peça sem grupo e não removida: {entry.id} ({label}) — vai sumir do resultado"
             )
             continue
-        if entry.group not in grouped:
-            grouped[entry.group] = []
+        if entry.group not in known_groups:
+            known_groups.add(entry.group)
             warnings.append(
                 f"grupo '{entry.group}' não declarado em groups — criado implicitamente"
             )
-        grouped[entry.group].extend(processed)
+        label = entry.user_label or entry.auto_class
+        for m in processed:
+            records.append(
+                ProcessedComponent(
+                    component_id=entry.id, label=label, group=entry.group, mesh=m
+                )
+            )
 
     # 6. ORIENT
-    grouped = {
-        g: [apply_orient(m, project.orient) for m in ms] for g, ms in grouped.items()
-    }
+    records = [replace(r, mesh=apply_orient(r.mesh, project.orient)) for r in records]
 
     # 7. ORIGIN — sempre por último: a âncora só faz sentido na orientação final
-    grouped = {g: ms for g, ms in grouped.items() if ms}
+    grouped = {}
+    for r in records:
+        grouped.setdefault(r.group, []).append(r.mesh)
     if grouped:  # tudo removido/sem grupo → nada a ancorar nem exportar
         feature_bounds = None
         ref = project.origin.get("feature_ref")
@@ -188,6 +205,21 @@ def run(project, base_dir):
             feature_bounds=feature_bounds,
             offset=project.origin.get("offset", [0, 0, 0]),
         )
+        # re-associar as malhas transladadas aos registros, na mesma ordem por grupo
+        cursors = {g: iter(ms) for g, ms in grouped.items()}
+        records = [replace(r, mesh=next(cursors[r.group])) for r in records]
+
+    return records, warnings
+
+
+def run(project, base_dir):
+    """Executa a receita completa e exporta um arquivo por grupo."""
+    base_dir = Path(base_dir)
+    records, warnings = process(project, base_dir)
+
+    grouped = {}
+    for r in records:
+        grouped.setdefault(r.group, []).append(r.mesh)
 
     # 8. EXPORT — um arquivo por grupo
     result = PipelineResult(warnings=warnings)
