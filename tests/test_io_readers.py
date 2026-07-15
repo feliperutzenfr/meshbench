@@ -40,3 +40,11 @@ def test_formato_nao_suportado(tmp_path):
     p.write_text("#VRML V2.0 utf8")
     with pytest.raises(ValueError, match="não suportado"):
         read_mesh(p)
+
+
+def test_dxf_sem_3dface_levanta_erro(tmp_path):
+    doc = ezdxf.new(dxfversion="AC1009")
+    doc.saveas(str(tmp_path / "vazio.dxf"))
+    p = tmp_path / "vazio.dxf"
+    with pytest.raises(ValueError, match="3DFACE"):
+        read_dxf_3dface(p)

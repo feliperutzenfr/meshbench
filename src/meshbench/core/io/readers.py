@@ -38,6 +38,8 @@ def read_dxf_3dface(path):
             tris += [(base, base + 1, base + 2), (base, base + 2, base + 3)]
         else:
             tris.append((base, base + 1, base + 2))
+    if not tris:
+        raise ValueError(f"nenhuma entidade 3DFACE encontrada em '{path}'")
     m = trimesh.Trimesh(vertices=np.array(verts), faces=np.array(tris), process=False)
     m.merge_vertices()  # ESSENCIAL — sem isso o split() não acha componentes
     return m

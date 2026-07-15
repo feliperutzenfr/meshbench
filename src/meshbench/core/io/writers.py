@@ -26,6 +26,8 @@ def write_meshes(meshes, path, fmt):
         write_dxf_r12(meshes, path)
     elif fmt in ("stl", "obj"):
         combined = trimesh.util.concatenate(meshes) if len(meshes) > 1 else meshes[0]
-        combined.export(str(path))
+        # file_type explícito: sem isso o trimesh infere do sufixo do path, que
+        # pode não bater com fmt (ex.: exportar STL para um arquivo .dxf).
+        combined.export(str(path), file_type=fmt)
     else:
         raise ValueError(f"formato de exportação '{fmt}' não suportado")

@@ -59,7 +59,7 @@ def _match_entry(fam, components, factor):
         devs = [
             abs(parsed[2][i] * factor[i] - parsed_fam[2][i]) for i in range(3)
         ]
-        if all(d <= 0.06 * factor[i] + 0.06 for i, d in enumerate(devs)):
+        if all(d <= 0.06 * abs(factor[i]) + 0.06 for i, d in enumerate(devs)):
             worst = max(devs)
             if best is None or worst < best_dev:
                 best, best_dev = entry, worst
@@ -77,11 +77,17 @@ def apply_orient(mesh, orient):
     spec = orient.get("custom_remap") or orient.get("axis_remap", "identidade")
     m = remap_axes(mesh, spec)
     for r in orient.get("rotations", []):
+        axis = r["axis"]
+        # validar ANTES de aplicar — sem isto, deg%90==0 caía no rotate_90, que só
+        # valida o eixo dentro do loop `range(steps % 4)` e vira no-op silencioso
+        # quando steps%4==0 (ex.: deg=360 com eixo inválido não seria detectado).
+        if axis not in ("x", "y", "z"):
+            raise ValueError(f"eixo de rotação '{axis}' inválido")
         deg = float(r["deg"])
         if deg % 90 == 0:
-            m = rotate_90(m, r["axis"], int(deg // 90))
+            m = rotate_90(m, axis, int(deg // 90))
         else:
-            args = {"rx": 0.0, "ry": 0.0, "rz": 0.0, "r" + r["axis"]: deg}
+            args = {"rx": 0.0, "ry": 0.0, "rz": 0.0, "r" + axis: deg}
             m = rotate_free(m, args["rx"], args["ry"], args["rz"])
     for ax in orient.get("mirror", []):
         m = mirror(m, ax)
@@ -126,22 +132,34 @@ def run(project, base_dir):
         if entry.operation.get("type") == "remove":
             continue
         if entry.operation.get("type") == "hull" and entry.auto_class == "profile":
-            rotulo = entry.user_label or entry.id
-            warnings.append(f"hull em perfil aberto ({rotulo}) — isto vai fechar o perfil")
+            label = entry.user_label or entry.id
+            warnings.append(f"hull em perfil aberto ({label}) — isto vai fechar o perfil")
         processed = []
         for m in fam.meshes:
             out = apply_op(m, entry.operation)
             if out is not None:
                 processed.append(out)
+        if not processed:
+            tipo = entry.operation.get("type")
+            warnings.append(
+                f"operação '{tipo}' não produziu malha para {entry.id} — peça fora da saída"
+            )
+        # feature_meshes guarda as malhas pós-OPS (pré-ORIENT); apply_orient faz
+        # mesh.copy() antes de mutar, então reaplicá-lo aqui e de novo em `grouped`
+        # (via feature_ref) não causa transformação em dobro — cada chamada parte
+        # do mesmo estado base e devolve uma cópia nova.
         feature_meshes[entry.id] = processed
         if entry.group is None:
-            rotulo = entry.user_label or entry.auto_class
+            label = entry.user_label or entry.auto_class
             warnings.append(
-                f"peça sem grupo e não removida: {entry.id} ({rotulo}) — vai sumir do resultado"
+                f"peça sem grupo e não removida: {entry.id} ({label}) — vai sumir do resultado"
             )
             continue
         if entry.group not in grouped:
             grouped[entry.group] = []
+            warnings.append(
+                f"grupo '{entry.group}' não declarado em groups — criado implicitamente"
+            )
         grouped[entry.group].extend(processed)
 
     # 6. ORIENT
@@ -154,9 +172,14 @@ def run(project, base_dir):
     if grouped:  # tudo removido/sem grupo → nada a ancorar nem exportar
         feature_bounds = None
         ref = project.origin.get("feature_ref")
-        if ref and feature_meshes.get(ref):
-            oriented_ref = [apply_orient(m, project.orient) for m in feature_meshes[ref]]
-            feature_bounds = _bounds_of(oriented_ref)
+        if ref:
+            if feature_meshes.get(ref):
+                oriented_ref = [apply_orient(m, project.orient) for m in feature_meshes[ref]]
+                feature_bounds = _bounds_of(oriented_ref)
+            else:
+                warnings.append(
+                    f"feature_ref '{ref}' não encontrado ou sem malha — usando âncora padrão"
+                )
         grouped = place_origin(
             grouped,
             mode=project.origin.get("mode", "common"),
@@ -172,7 +195,9 @@ def run(project, base_dir):
     if not out_dir.is_absolute():
         out_dir = base_dir / out_dir
     fmt = project.export.get("format", "dxf_r12")
-    ext = {"dxf_r12": "dxf", "stl": "stl", "obj": "obj"}[fmt]
+    ext = {"dxf_r12": "dxf", "stl": "stl", "obj": "obj"}.get(fmt)
+    if ext is None:
+        raise ValueError(f"formato de exportação '{fmt}' não suportado")
     naming = project.export.get("naming", "{project}_{group}." + ext)
     for g, ms in grouped.items():
         if not ms:

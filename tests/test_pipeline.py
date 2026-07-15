@@ -1,9 +1,11 @@
 import numpy as np
+import pytest
 import trimesh
 
 from meshbench.core.analyze.components import split_components
 from meshbench.core.io.readers import read_dxf_3dface
-from meshbench.core.pipeline import run
+from meshbench.core.ops.registry import OPS, register
+from meshbench.core.pipeline import apply_orient, run
 from meshbench.core.project import new_project
 
 
@@ -91,3 +93,59 @@ def test_pipeline_escala_com_dimensao_fracionaria(tmp_path):
     res = run(p, tmp_path)
     assert len(res.files) == 1
     assert not any("não está na receita" in w for w in res.warnings)
+
+
+def test_pipeline_avisa_operacao_sem_saida(tmp_path, box, small_sphere):
+    register("nula", lambda m, **kw: None)
+    try:
+        p = _setup(tmp_path, box, small_sphere)
+        caixa_entry = [c for c in p.components if c.face_count == 12][0]
+        caixa_entry.operation = {"type": "nula", "params": {}}
+        res = run(p, tmp_path)
+        assert any(
+            "não produziu malha" in w and caixa_entry.id in w for w in res.warnings
+        )
+    finally:
+        del OPS["nula"]
+
+
+def test_pipeline_avisa_feature_ref_nao_resolvivel(tmp_path, box, small_sphere):
+    p = _setup(tmp_path, box, small_sphere)
+    p.origin["feature_ref"] = "c_nao_existe"
+    res = run(p, tmp_path)
+    assert any("feature_ref" in w for w in res.warnings)
+
+
+def test_pipeline_avisa_grupo_nao_declarado(tmp_path, box, small_sphere):
+    p = _setup(tmp_path, box, small_sphere)
+    caixa_entry = [c for c in p.components if c.face_count == 12][0]
+    caixa_entry.group = "fantasma"
+    res = run(p, tmp_path)
+    assert any("grupo 'fantasma' não declarado" in w for w in res.warnings)
+    assert (tmp_path / "out" / "teste_fantasma.dxf").exists()
+
+
+def test_apply_orient_eixo_invalido():
+    orient = {
+        "axis_remap": "identidade",
+        "custom_remap": None,
+        "rotations": [{"axis": "w", "deg": 90}],
+        "mirror": [],
+    }
+    mesh = trimesh.creation.box(extents=[10.0, 20.0, 30.0])
+    with pytest.raises(ValueError, match="inválido"):
+        apply_orient(mesh, orient)
+
+
+def test_apply_orient_eixo_invalido_multiplo_de_90():
+    # deg % 90 == 0 caía direto no rotate_90 sem validar o eixo antes —
+    # regressão: deve levantar ValueError também neste caminho.
+    orient = {
+        "axis_remap": "identidade",
+        "custom_remap": None,
+        "rotations": [{"axis": "w", "deg": 360}],
+        "mirror": [],
+    }
+    mesh = trimesh.creation.box(extents=[10.0, 20.0, 30.0])
+    with pytest.raises(ValueError, match="inválido"):
+        apply_orient(mesh, orient)
