@@ -73,6 +73,24 @@ def _cmd_apply(args):
     return 0
 
 
+def _cmd_serve(args):
+    import threading
+    import webbrowser
+
+    import uvicorn
+
+    from meshbench.api.server import create_app, load_session
+
+    session = load_session(args.alvo)
+    app = create_app(session)
+    url = f"http://127.0.0.1:{args.port}"
+    print(f"MeshBench em {url} — Ctrl+C para sair")
+    if not args.no_browser:
+        threading.Timer(1.0, webbrowser.open, args=(url,)).start()
+    uvicorn.run(app, host="127.0.0.1", port=args.port, log_level="warning")
+    return 0
+
+
 def main(argv=None):
     # stdout redirecionado/pipado no Windows costuma cair em cp1252 — os símbolos
     # ⚠/✓ quebram com UnicodeEncodeError; força substituição em vez de crashar.
@@ -107,6 +125,12 @@ def main(argv=None):
         help="re-lê o source e re-casa componentes por assinatura antes de aplicar",
     )
     p_apply.set_defaults(fn=_cmd_apply)
+
+    p_serve = sub.add_parser("serve", help="abre o viewport 3D read-only no navegador")
+    p_serve.add_argument("alvo", help="receita .meshbench.json ou arquivo de malha")
+    p_serve.add_argument("--port", type=int, default=8765)
+    p_serve.add_argument("--no-browser", action="store_true", help="não abrir o navegador")
+    p_serve.set_defaults(fn=_cmd_serve)
 
     args = parser.parse_args(argv)
     try:
