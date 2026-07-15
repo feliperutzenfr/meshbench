@@ -73,6 +73,13 @@ def create_app(session):
 
     @app.get("/api/project/geometry")
     def get_geometry():
+        # sem registros (tudo removido ou sem grupo) o trimesh não exporta uma
+        # cena vazia — 404 em vez de 500
+        if not session.records:
+            return JSONResponse(
+                status_code=404,
+                content={"detail": "nenhuma peça no resultado — tudo removido ou sem grupo"},
+            )
         glb = build_scene_glb(display_records(session.records))
         return Response(content=glb, media_type="model/gltf-binary")
 

@@ -135,7 +135,9 @@ def main(argv=None):
     args = parser.parse_args(argv)
     try:
         return args.fn(args)
-    except (FileNotFoundError, ValueError) as e:
+    except (FileNotFoundError, ValueError, OSError) as e:
+        # OSError cobre, por ex., porta já em uso no `serve` (uvicorn levanta
+        # OSError, não um erro específico) — mensagem amigável, sem traceback.
         print(f"erro: {e}")
         return 1
 

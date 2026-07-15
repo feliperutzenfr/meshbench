@@ -35,6 +35,12 @@ def build_scene_glb(records):
 
     O frontend usa o nome para mapear componente -> grupo -> cor; não dependemos
     de materiais do GLB.
+
+    Armadilha: o three.js remove `.`/`:`/`/` de nomes de nós no load
+    (GLTFLoader -> PropertyBinding.sanitizeNodeName) — o frontend lê
+    `userData.name`, NUNCA confiar em `obj.name` para o separador; o sufixo
+    `.{i}` acima é só um índice global, existe para garantir unicidade do nome
+    (trimesh precisa de node_name único por instância), não é parseado aqui.
     """
     scene = trimesh.Scene()
     for i, r in enumerate(records):

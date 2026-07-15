@@ -221,6 +221,15 @@ def run(project, base_dir):
     for r in records:
         grouped.setdefault(r.group, []).append(r.mesh)
 
+    # ordem de emissão = ordem de DECLARAÇÃO em project.groups, depois qualquer
+    # grupo implícito (criado por peça com grupo não declarado) na ordem em que
+    # foi encontrado — restaura a listagem da Fase 1, em vez da ordem de
+    # encontro das famílias durante o loop de OPS/GROUP acima.
+    group_order = [g["name"] for g in project.groups]
+    for g in grouped:
+        if g not in group_order:
+            group_order.append(g)
+
     # 8. EXPORT — um arquivo por grupo
     result = PipelineResult(warnings=warnings)
     out_dir = Path(project.export.get("out_dir", "out/"))
@@ -231,7 +240,8 @@ def run(project, base_dir):
     if ext is None:
         raise ValueError(f"formato de exportação '{fmt}' não suportado")
     naming = project.export.get("naming", "{project}_{group}." + ext)
-    for g, ms in grouped.items():
+    for g in group_order:
+        ms = grouped.get(g)
         if not ms:
             continue
         name = naming.format(project=project.name, group=g)

@@ -17,9 +17,12 @@ function disposeSceneResources(root) {
 export default function Viewport({ state }) {
   const mountRef = useRef(null);
   const [erro, setErro] = useState(null);
+  const [aviso, setAviso] = useState(null);
+  const semSaida = Object.keys(state.group_faces || {}).length === 0;
 
   useEffect(() => {
     setErro(null);
+    setAviso(null);
     let cancelled = false;
     const mount = mountRef.current;
     const scene = new THREE.Scene();
@@ -34,6 +37,7 @@ export default function Viewport({ state }) {
     camera.up.set(0, 0, 1); // convenção do domínio: Z = altura (Promob)
 
     const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(window.devicePixelRatio); // nitidez em telas HiDPI
     renderer.setSize(mount.clientWidth, mount.clientHeight);
     mount.appendChild(renderer.domElement);
 
@@ -48,71 +52,84 @@ export default function Viewport({ state }) {
     const groupOf = {};
     for (const c of state.components) groupOf[c.id] = c.group;
 
-    new GLTFLoader().load(
-      "/api/project/geometry",
-      (gltf) => {
-        if (cancelled) {
-          disposeSceneResources(gltf.scene);
-          return;
-        }
-        gltf.scene.traverse((obj) => {
-          if (obj.isMesh) {
-            // o GLB do backend traz só POSITION — sem normais o material
-            // iluminado renderiza preto
-            if (!obj.geometry.attributes.normal) {
-              obj.geometry.computeVertexNormals();
-            }
-            const compId = obj.name.split(".")[0];
-            obj.material = new THREE.MeshStandardMaterial({
-              color: groupColor(groupOf[compId], groupNames),
-              metalness: 0.1,
-              roughness: 0.75,
-              side: THREE.DoubleSide,
-            });
+    // sem peças no resultado (tudo removido ou sem grupo): não há GLB para
+    // buscar — o backend responde 404 — só avisa o usuário em vez de tentar
+    // carregar geometria inexistente
+    if (semSaida) {
+      setAviso("nenhuma peça no resultado");
+    } else {
+      new GLTFLoader().load(
+        "/api/project/geometry",
+        (gltf) => {
+          if (cancelled) {
+            disposeSceneResources(gltf.scene);
+            return;
           }
-        });
-        scene.add(gltf.scene);
+          gltf.scene.traverse((obj) => {
+            if (obj.isMesh) {
+              // o GLB do backend traz só POSITION — sem normais o material
+              // iluminado renderiza preto
+              if (!obj.geometry.attributes.normal) {
+                obj.geometry.computeVertexNormals();
+              }
+              // three.js sanitiza nomes de nó no load do GLTF (GLTFLoader ->
+              // PropertyBinding.sanitizeNodeName), removendo `.`/`:`/`/` —
+              // obj.name aqui vira "c00" em vez de "c0.0", quebrando o split
+              // e fazendo o mapeamento cair sempre na cor do grupo 0 em
+              // receitas com múltiplos grupos. GLTFLoader preserva o nome
+              // original (pré-sanitização) em userData.name — usar sempre.
+              const compId = (obj.userData.name || obj.name).split(".")[0];
+              obj.material = new THREE.MeshStandardMaterial({
+                color: groupColor(groupOf[compId], groupNames),
+                metalness: 0.1,
+                roughness: 0.75,
+                side: THREE.DoubleSide,
+              });
+            }
+          });
+          scene.add(gltf.scene);
 
-        const box = new THREE.Box3().setFromObject(gltf.scene);
-        const size = box.getSize(new THREE.Vector3());
-        const center = box.getCenter(new THREE.Vector3());
-        const radius = Math.max(size.x, size.y, size.z, 1);
+          const box = new THREE.Box3().setFromObject(gltf.scene);
+          const size = box.getSize(new THREE.Vector3());
+          const center = box.getCenter(new THREE.Vector3());
+          const radius = Math.max(size.x, size.y, size.z, 1);
 
-        // grid no plano XY (chão da convenção Z-up)
-        const grid = new THREE.GridHelper(radius * 3, 30, 0x3a3a46, 0x26262e);
-        grid.rotation.x = Math.PI / 2; // GridHelper nasce em XZ; deitar para XY
-        scene.add(grid);
+          // grid no plano XY (chão da convenção Z-up)
+          const grid = new THREE.GridHelper(radius * 3, 30, 0x3a3a46, 0x26262e);
+          grid.rotation.x = Math.PI / 2; // GridHelper nasce em XZ; deitar para XY
+          scene.add(grid);
 
-        // marcador de origem: quadrado vermelho em (0,0,0), como o Promob mostra
-        const marker = new THREE.Mesh(
-          new THREE.PlaneGeometry(radius * 0.04, radius * 0.04),
-          new THREE.MeshBasicMaterial({
-            color: 0xff2222,
-            side: THREE.DoubleSide,
-            depthTest: false,
-          }),
-        );
-        marker.renderOrder = 999;
-        scene.add(marker);
-
-        scene.add(new THREE.AxesHelper(radius * 0.5));
-
-        if (!box.isEmpty()) {
-          camera.position.set(
-            center.x + radius * 1.2,
-            center.y - radius * 1.2,
-            center.z + radius * 0.9,
+          // marcador de origem: quadrado vermelho em (0,0,0), como o Promob mostra
+          const marker = new THREE.Mesh(
+            new THREE.PlaneGeometry(radius * 0.04, radius * 0.04),
+            new THREE.MeshBasicMaterial({
+              color: 0xff2222,
+              side: THREE.DoubleSide,
+              depthTest: false,
+            }),
           );
-          controls.target.copy(center);
-          controls.update();
-        }
-      },
-      undefined,
-      (err) => {
-        console.error("falha ao carregar /api/project/geometry", err);
-        if (!cancelled) setErro("falha ao carregar a geometria — veja o console");
-      },
-    );
+          marker.renderOrder = 999;
+          scene.add(marker);
+
+          scene.add(new THREE.AxesHelper(radius * 0.5));
+
+          if (!box.isEmpty()) {
+            camera.position.set(
+              center.x + radius * 1.2,
+              center.y - radius * 1.2,
+              center.z + radius * 0.9,
+            );
+            controls.target.copy(center);
+            controls.update();
+          }
+        },
+        undefined,
+        (err) => {
+          console.error("falha ao carregar /api/project/geometry", err);
+          if (!cancelled) setErro("falha ao carregar a geometria — veja o console");
+        },
+      );
+    }
 
     let frame;
     const animate = () => {
@@ -144,6 +161,7 @@ export default function Viewport({ state }) {
   return (
     <div className="viewport" ref={mountRef}>
       {erro && <div className="viewport-erro">{erro}</div>}
+      {!erro && aviso && <div className="viewport-aviso">{aviso}</div>}
     </div>
   );
 }
