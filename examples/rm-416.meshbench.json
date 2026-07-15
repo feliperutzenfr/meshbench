@@ -1,0 +1,82 @@
+{
+  "name": "rm-416",
+  "source": {
+    "path": "../docs/peças exemplo/RM-416.STL",
+    "sha256": "8e98de63f486cf575e87f4089fe6000c960af2492c741a347ba0a1697d76496b",
+    "detected_units": "mm",
+    "detection_note": "provável: faixa típica de componente de móvel em mm",
+    "units": "mm"
+  },
+  "scale": {
+    "mode": "unit_convert",
+    "from_unit": "mm",
+    "to_unit": "mm",
+    "value": null,
+    "per_axis": null,
+    "fit": null,
+    "factor": [
+      1.0,
+      1.0,
+      1.0
+    ]
+  },
+  "components": [
+    {
+      "id": "c0",
+      "signature": "f536:v270:b[54.5,15.0,1000.0]",
+      "instances": 1,
+      "face_count": 536,
+      "bbox": [
+        [
+          0.009467825,
+          4.336809e-16,
+          1.110223e-13
+        ],
+        [
+          54.49877,
+          15.04819,
+          1000.0
+        ]
+      ],
+      "auto_class": "profile",
+      "user_label": "perfil cava",
+      "operation": {
+        "type": "reextrude",
+        "params": {
+          "tol": 0.4
+        }
+      },
+      "group": "saida",
+      "needs_review": false
+    }
+  ],
+  "groups": [
+    {
+      "name": "saida",
+      "role": "fixed"
+    }
+  ],
+  "orient": {
+    "axis_remap": "cad_to_promob",
+    "custom_remap": null,
+    "rotations": [],
+    "mirror": []
+  },
+  "origin": {
+    "mode": "common",
+    "anchor": "bbox_min",
+    "feature_ref": null,
+    "snap_point": null,
+    "offset": [
+      0,
+      0,
+      0
+    ]
+  },
+  "export": {
+    "format": "dxf_r12",
+    "out_dir": "../out/",
+    "naming": "{project}_{group}.dxf"
+  },
+  "version": 1
+}
