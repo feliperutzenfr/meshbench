@@ -1,0 +1,31 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body, #root { height: 100%; }
+body { font-family: system-ui, sans-serif; background: #16161a; color: #e8e8ec; }
+
+.app {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  grid-template-rows: 1fr auto;
+  grid-template-areas: "sidebar viewport" "sidebar statusbar";
+  height: 100%;
+}
+.sidebar { grid-area: sidebar; overflow-y: auto; background: #1e1e24; padding: 12px; border-right: 1px solid #2c2c34; }
+.viewport-wrap { grid-area: viewport; position: relative; min-width: 0; min-height: 0; }
+.viewport { position: absolute; inset: 0; }
+.statusbar { grid-area: statusbar; background: #1e1e24; border-top: 1px solid #2c2c34; padding: 10px 14px; display: flex; gap: 24px; align-items: center; flex-wrap: wrap; }
+.tela-aviso { display: grid; place-items: center; height: 100%; font-size: 1.1rem; }
+
+.sidebar h2 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; color: #9a9aa5; margin: 14px 0 6px; }
+.familia { display: flex; align-items: center; gap: 8px; padding: 5px 6px; border-radius: 6px; font-size: 0.88rem; }
+.familia .cor { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+.familia .op { margin-left: auto; font-size: 0.72rem; color: #9a9aa5; }
+.familia.removida { opacity: 0.45; }
+.familia .alerta { color: #f2b84b; }
+
+.dims { font-size: 1.05rem; font-weight: 600; }
+.budget { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; }
+.budget .luz { width: 10px; height: 10px; border-radius: 50%; }
+.luz.verde { background: #4caf50; }
+.luz.amarelo { background: #f2b84b; }
+.luz.vermelho { background: #e15759; }
+.avisos { font-size: 0.8rem; color: #f2b84b; }

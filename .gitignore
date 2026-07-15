@@ -7,3 +7,5 @@ build/
 out/
 docs/peças exemplo/
 .pytest_cache/
+web/node_modules/
+src/meshbench/api/static/
