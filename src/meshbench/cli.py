@@ -74,6 +74,15 @@ def _cmd_apply(args):
 
 
 def main(argv=None):
+    # stdout redirecionado/pipado no Windows costuma cair em cp1252 — os símbolos
+    # ⚠/✓ quebram com UnicodeEncodeError; força substituição em vez de crashar.
+    if (
+        hasattr(sys.stdout, "reconfigure")
+        and sys.stdout.encoding
+        and sys.stdout.encoding.lower() not in ("utf-8", "utf8")
+    ):
+        sys.stdout.reconfigure(errors="replace")
+
     parser = argparse.ArgumentParser(
         prog="meshbench",
         description="Prepara malhas 3D exportadas de CAD para software de projeto (Promob e outros).",
@@ -100,7 +109,11 @@ def main(argv=None):
     p_apply.set_defaults(fn=_cmd_apply)
 
     args = parser.parse_args(argv)
-    return args.fn(args)
+    try:
+        return args.fn(args)
+    except (FileNotFoundError, ValueError) as e:
+        print(f"erro: {e}")
+        return 1
 
 
 if __name__ == "__main__":

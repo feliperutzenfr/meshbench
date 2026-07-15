@@ -5,6 +5,13 @@ import trimesh
 from meshbench.cli import main
 
 
+def test_inspect_arquivo_inexistente_erro_amigavel(tmp_path, capsys):
+    assert main(["inspect", str(tmp_path / "nao_existe.stl")]) == 1
+    out = capsys.readouterr().out
+    assert "erro:" in out
+    assert "Traceback" not in out
+
+
 def _stl(tmp_path, box, small_sphere):
     s = small_sphere.copy()
     s.apply_translation([100, 0, 0])
