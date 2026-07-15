@@ -18,10 +18,12 @@ dependencies = [
     "ezdxf>=1.1",
     "fast-simplification>=0.1.7",
     "lxml>=5.0",
+    "fastapi>=0.110",
+    "uvicorn>=0.30",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0"]
+dev = ["pytest>=8.0", "httpx>=0.27"]
 
 [project.scripts]
 meshbench = "meshbench.cli:main"
