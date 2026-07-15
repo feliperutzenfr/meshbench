@@ -13,8 +13,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Single test: `.venv/Scripts/python -m pytest tests/test_ops_tube.py::test_op_tube_reduz_faces -v`
 - Gold regression (needs `docs/peças exemplo/`, slow): `.venv/Scripts/python -m pytest -m slow`
 - CLI: `.venv/Scripts/python -m meshbench inspect|init|apply …`
+- Viewport (fase 2): `.venv/Scripts/python -m meshbench serve <arquivo>` (porta 8765)
+- Frontend: `npm --prefix web install|run build|run dev|test` (build vai para `src/meshbench/api/static/`, gitignored)
 
-Phase 1 (core engine + CLI) is implemented. Phases 2+ (FastAPI + Three.js viewport) are not yet.
+Phases 1 (core+CLI) and 2 (read-only viewport: FastAPI + React/Three.js in `web/`) are implemented. Phases 3+ (selection, interactive ops, gizmos) are not yet.
 
 ## What this project is
 

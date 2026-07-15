@@ -57,6 +57,11 @@ export default function Viewport({ state }) {
         }
         gltf.scene.traverse((obj) => {
           if (obj.isMesh) {
+            // o GLB do backend traz só POSITION — sem normais o material
+            // iluminado renderiza preto
+            if (!obj.geometry.attributes.normal) {
+              obj.geometry.computeVertexNormals();
+            }
             const compId = obj.name.split(".")[0];
             obj.material = new THREE.MeshStandardMaterial({
               color: groupColor(groupOf[compId], groupNames),

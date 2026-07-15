@@ -20,6 +20,21 @@ sugerem — o usuário decide o que cada peça é e o que fazer com ela.
     meshbench apply peça.meshbench.json # aplica e exporta (out/)
     meshbench apply peça.meshbench.json --reimport  # após reexportar do CAD
 
+## Viewport 3D (Fase 2)
+
+    meshbench serve peça.stl              # abre o preview 3D no navegador
+    meshbench serve receita.meshbench.json
+
+Read-only nesta fase: o viewport mostra o resultado do pipeline (cores por
+grupo, origem, orçamento de faces). Edição interativa vem nas próximas fases.
+
+### Desenvolvimento do frontend
+
+    npm --prefix web install
+    npm --prefix web run build   # builda para src/meshbench/api/static/
+    npm --prefix web run dev     # dev server com proxy para :8765
+    npm --prefix web test        # vitest
+
 ## Testes
 
     .venv\Scripts\python -m pytest              # suíte rápida (sintética)
