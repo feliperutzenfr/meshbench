@@ -14,10 +14,10 @@ from meshbench.core.project import Project, new_project, rematch
 
 def _cmd_inspect(args):
     mesh = read_mesh(args.arquivo)
-    unit, motivo = guess_unit(mesh)
+    unit, reason = guess_unit(mesh)
     print(f"Arquivo: {args.arquivo}")
     print(f"Dimensões (na unidade do arquivo): {human_dimensions(mesh)}")
-    print(f"Unidade sugerida: {unit or 'ambígua'} — {motivo}")
+    print(f"Unidade sugerida: {unit or 'ambígua'} — {reason}")
     fams = split_components(mesh)
     print(f"\n{len(fams)} famílias de componentes:")
     print(f"{'id':<5} {'inst':>4} {'faces':>7}  {'classe sugerida':<15} {'op sugerida'}")
@@ -31,37 +31,38 @@ def _cmd_inspect(args):
 
 def _cmd_init(args):
     src = Path(args.arquivo)
-    nome = args.nome or src.stem
+    name = args.nome or src.stem
     mesh = read_mesh(src)
     fams = split_components(mesh)
-    p = new_project(nome, src, mesh, fams)
-    saida = Path(args.saida) if args.saida else src.parent / f"{nome}.meshbench.json"
+    p = new_project(name, src, mesh, fams)
+    out_path = Path(args.saida) if args.saida else src.parent / f"{name}.meshbench.json"
     # caminho do source relativo à pasta da receita, quando possível
     try:
-        p.source["path"] = str(src.resolve().relative_to(saida.resolve().parent))
+        p.source["path"] = str(src.resolve().relative_to(out_path.resolve().parent))
     except ValueError:
         p.source["path"] = str(src.resolve())
-    p.save(saida)
-    print(f"Receita criada: {saida}")
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    p.save(out_path)
+    print(f"Receita criada: {out_path}")
     print("Revise as operações e grupos sugeridos antes de aplicar — a heurística só sugere.")
     return 0
 
 
 def _cmd_apply(args):
-    receita = Path(args.receita)
-    p = Project.load(receita)
-    base_dir = receita.resolve().parent
+    recipe_path = Path(args.receita)
+    p = Project.load(recipe_path)
+    base_dir = recipe_path.resolve().parent
     if args.reimport:
         src = Path(p.source["path"])
         if not src.is_absolute():
             src = base_dir / src
         mesh = read_mesh(src)
         p, warnings_list = rematch(p, split_components(mesh))
-        for a in warnings_list:
-            print(f"⚠ {a}")
-        p.save(receita)
+        for w in warnings_list:
+            print(f"⚠ {w}")
+        p.save(recipe_path)
     res = run(p, base_dir)
-    p.save(receita)  # grava o fator de escala resultante
+    p.save(recipe_path)  # grava o fator de escala resultante
     for w in res.warnings:
         print(f"⚠ {w}")
     for f in res.files:

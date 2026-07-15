@@ -56,6 +56,7 @@ def test_apply_mostra_avisos(tmp_path, box, small_sphere, capsys):
     main(["apply", str(receita)])
     out = capsys.readouterr().out
     assert "⚠" in out and "sem grupo" in out
+    assert "nenhum arquivo exportado" in out
 
 
 def test_apply_reimport_rematch(tmp_path, box, small_sphere, capsys):
