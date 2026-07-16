@@ -100,6 +100,10 @@ export default function Inspector({
         user_label: label.trim() || null,
       });
       onStateChange(novo);
+      // resincroniza o formulário com o estado devolvido (ex.: grupo recém-criado)
+      const atual = novo.components.find((c) => c.id === entry.id);
+      setGroup(atual?.group ?? "");
+      setLabel(atual?.user_label ?? "");
       setNovoGrupo("");
       setMsg("aplicado ✓");
     } catch (e) {
@@ -109,6 +113,7 @@ export default function Inspector({
   };
 
   const salvar = async () => {
+    setBusy(true);
     setMsg(null);
     try {
       const r = await saveRecipe();
@@ -116,6 +121,7 @@ export default function Inspector({
     } catch (e) {
       setMsg(`erro: ${e.message}`);
     }
+    setBusy(false);
   };
 
   return (
@@ -166,7 +172,7 @@ export default function Inspector({
           </button>
         </>
       )}
-      <button className="btn" onClick={salvar}>
+      <button className="btn" disabled={busy} onClick={salvar}>
         Salvar receita
       </button>
       {msg && <p className="msg">{msg}</p>}

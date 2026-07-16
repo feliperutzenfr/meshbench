@@ -19,19 +19,26 @@ export function opDefaults(type) {
 }
 
 // Converte params do formulário (strings) para o corpo do PATCH/preview.
+// Campo vazio ou inválido cai no default (Number("") seria 0 — nunca o que o usuário quis).
 export function coerceParams(type, params) {
+  const num = (v, d) => {
+    if (v === "" || v == null) return d;
+    const n = Number(v);
+    return Number.isNaN(n) ? d : n;
+  };
   const out = {};
   if (type === "decimate") {
-    if (params.face_count) out.face_count = Math.round(Number(params.face_count));
-    else out.percent = Number(params.percent ?? 25);
+    const fc = params.face_count !== "" && params.face_count != null ? Number(params.face_count) : NaN;
+    if (!Number.isNaN(fc)) out.face_count = Math.round(fc);
+    else out.percent = num(params.percent, 25);
   } else if (type === "tube") {
-    out.sides = Math.round(Number(params.sides ?? 8));
-    out.bin_mm = Number(params.bin_mm ?? 3.0);
+    out.sides = Math.round(num(params.sides, 8));
+    out.bin_mm = num(params.bin_mm, 3.0);
     if (params.radius !== "" && params.radius != null) out.radius = Number(params.radius);
   } else if (type === "reextrude") {
     if (params.axis && params.axis !== "auto") out.axis = { x: 0, y: 1, z: 2 }[params.axis];
-    out.n_probe = Math.round(Number(params.n_probe ?? 25));
-    out.tol = Number(params.tol ?? 0.4);
+    out.n_probe = Math.round(num(params.n_probe, 25));
+    out.tol = num(params.tol, 0.4);
   }
   return out;
 }

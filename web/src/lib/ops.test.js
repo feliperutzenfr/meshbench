@@ -48,4 +48,23 @@ describe("ops", () => {
     expect(coerceParams("keep", {})).toEqual({});
     expect(coerceParams("hull", { lixo: 1 })).toEqual({});
   });
+
+  it("coerceParams: campos numéricos vazios caem nos defaults (não em 0)", () => {
+    expect(coerceParams("decimate", { percent: "" })).toEqual({ percent: 25 });
+    expect(coerceParams("tube", { sides: "", bin_mm: "", radius: "" })).toEqual({
+      sides: 8,
+      bin_mm: 3.0,
+    });
+    expect(coerceParams("reextrude", { axis: "auto", n_probe: "", tol: "" })).toEqual({
+      n_probe: 25,
+      tol: 0.4,
+    });
+  });
+
+  it("coerceParams: face_count inválido cai no percent", () => {
+    expect(coerceParams("decimate", { percent: "10", face_count: "abc" })).toEqual({
+      percent: 10,
+    });
+    expect(coerceParams("decimate", { percent: "", face_count: "" })).toEqual({ percent: 25 });
+  });
 });
