@@ -22,6 +22,15 @@ export default function App() {
     });
   }, []);
 
+  // troca de preview revoga o objectURL anterior; o toggle antes/depois reusa
+  // a mesma url (via {...preview, mostrando}) e não revoga nada
+  const handlePreviewChange = useCallback((novo) => {
+    setPreview((atual) => {
+      if (atual && novo && atual.url !== novo.url) URL.revokeObjectURL(atual.url);
+      return novo;
+    });
+  }, []);
+
   const handleSelect = useCallback(
     (id) => {
       clearPreview();
@@ -52,7 +61,7 @@ export default function App() {
         entry={state.components.find((c) => c.id === selected) || null}
         preview={preview}
         onStateChange={handleStateChange}
-        onPreviewChange={setPreview}
+        onPreviewChange={handlePreviewChange}
         onClearPreview={clearPreview}
       />
       <StatusBar state={state} />

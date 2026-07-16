@@ -174,17 +174,19 @@ export default function Inspector({
                 </span>
                 <button
                   className={"btn mini" + (preview.mostrando === "antes" ? " ativo" : "")}
+                  disabled={busy}
                   onClick={() => onPreviewChange({ ...preview, mostrando: "antes" })}
                 >
                   antes
                 </button>
                 <button
                   className={"btn mini" + (preview.mostrando === "depois" ? " ativo" : "")}
+                  disabled={busy}
                   onClick={() => onPreviewChange({ ...preview, mostrando: "depois" })}
                 >
                   depois
                 </button>
-                <button className="btn mini" onClick={onClearPreview}>
+                <button className="btn mini" disabled={busy} onClick={onClearPreview}>
                   fechar
                 </button>
               </div>
