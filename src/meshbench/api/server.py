@@ -1,5 +1,6 @@
 """Servidor local do MeshBench. Fase 2: viewport READ-ONLY (nenhuma rota de mutação)."""
 
+import threading
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
@@ -25,6 +26,10 @@ class ProjectSession:
     base_dir: Path
     records: list
     warnings: list = field(default_factory=list)
+    raw_mesh: object = None
+    recipe_path: Path | None = None
+    revision: int = 0
+    lock: threading.Lock = field(default_factory=threading.Lock)
 
 
 def load_session(path):
@@ -32,14 +37,26 @@ def load_session(path):
     path = Path(path)
     if path.suffix.lower() == ".json":
         project = Project.load(path)
+        base_dir = path.resolve().parent
+        recipe_path = path.resolve()
+        src = Path(project.source["path"])
+        if not src.is_absolute():
+            src = base_dir / src
+        raw_mesh = read_mesh(src)
     else:
-        mesh = read_mesh(path)
-        project = new_project(path.stem, path, mesh, split_components(mesh))
+        raw_mesh = read_mesh(path)
+        project = new_project(path.stem, path, raw_mesh, split_components(raw_mesh))
         project.source["path"] = path.name
-    base_dir = path.resolve().parent
-    records, warnings = process(project, base_dir)
+        base_dir = path.resolve().parent
+        recipe_path = (base_dir / f"{path.stem}.meshbench.json").resolve()
+    records, warnings = process(project, base_dir, mesh=raw_mesh)
     return ProjectSession(
-        project=project, base_dir=base_dir, records=records, warnings=warnings
+        project=project,
+        base_dir=base_dir,
+        records=records,
+        warnings=warnings,
+        raw_mesh=raw_mesh,
+        recipe_path=recipe_path,
     )
 
 
@@ -61,6 +78,7 @@ def _project_state(session):
         "group_faces": totals,
         "face_budget": FACE_BUDGET,
         "dims_mm": dims,
+        "revision": session.revision,
     }
 
 
