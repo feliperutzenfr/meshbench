@@ -139,7 +139,7 @@ export default function Viewport({ state, selected, onSelect, preview }) {
         },
         undefined,
         (err) => {
-          console.error("falha ao carregar /api/project/geometry", err);
+          console.error("falha ao carregar", geometryUrl(state.revision), err);
           if (!cancelled) setErro("falha ao carregar a geometria — veja o console");
         },
       );
@@ -149,10 +149,12 @@ export default function Viewport({ state, selected, onSelect, preview }) {
     const raycaster = new THREE.Raycaster();
     const down = { x: 0, y: 0 };
     const onPointerDown = (e) => {
+      if (e.button !== 0) return; // só botão esquerdo seleciona (direito/meio = órbita)
       down.x = e.clientX;
       down.y = e.clientY;
     };
     const onPointerUp = (e) => {
+      if (e.button !== 0) return;
       if (Math.hypot(e.clientX - down.x, e.clientY - down.y) > 5) return;
       const rect = renderer.domElement.getBoundingClientRect();
       const ndc = new THREE.Vector2(
