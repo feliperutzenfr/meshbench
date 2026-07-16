@@ -104,16 +104,21 @@ def apply_orient(mesh, orient):
     return m
 
 
-def process(project, base_dir):
-    """Executa as etapas 1-7 do pipeline e retorna (registros, warnings), sem exportar."""
+def process(project, base_dir, mesh=None):
+    """Executa as etapas 1-7 do pipeline e retorna (registros, warnings), sem exportar.
+
+    `mesh` pré-carregada pula a leitura do fonte (cache da sessão do servidor —
+    DXFs reais levam minutos para ler). A malha fornecida não é mutada.
+    """
     base_dir = Path(base_dir)
     warnings = []
 
-    # 1. IMPORT
-    src = Path(project.source["path"])
-    if not src.is_absolute():
-        src = base_dir / src
-    mesh = read_mesh(src)
+    # 1. IMPORT (pulado quando a sessão já tem a malha crua em cache)
+    if mesh is None:
+        src = Path(project.source["path"])
+        if not src.is_absolute():
+            src = base_dir / src
+        mesh = read_mesh(src)
 
     # 2. SCALE — sempre primeiro: parâmetros das ops são em mm absolutos
     mesh, factor = apply_scale(mesh, project.scale)

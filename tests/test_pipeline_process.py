@@ -47,3 +47,24 @@ def test_process_label(tmp_path, box, small_sphere):
     caixa.user_label = "metalon"
     records, _ = process(p, tmp_path)
     assert records[0].label == "metalon"
+
+
+def test_process_com_malha_pre_carregada(tmp_path, box):
+    """Com mesh= fornecido, process() não relê o arquivo fonte (cache da sessão)."""
+    from meshbench.core.analyze.components import split_components
+    from meshbench.core.pipeline import process
+    from meshbench.core.project import new_project
+
+    src = tmp_path / "caixa.stl"
+    box.export(str(src))
+    p = new_project("t", src, box, split_components(box))
+    p.source["path"] = "caixa.stl"
+
+    src.unlink()  # o arquivo some — só o cache pode servir a malha
+
+    records, warnings = process(p, tmp_path, mesh=box)
+    assert len(records) == 1
+    assert len(records[0].mesh.faces) == 12
+    # a malha fornecida não foi mutada
+    import numpy as np
+    assert np.allclose(box.extents, [10, 20, 30])
