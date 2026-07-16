@@ -31,3 +31,7 @@ body { font-family: system-ui, sans-serif; background: #16161a; color: #e8e8ec; 
 .luz.amarelo { background: #f2b84b; }
 .luz.vermelho { background: #e15759; }
 .avisos { font-size: 0.8rem; color: #f2b84b; }
+
+.familia { cursor: pointer; }
+.familia:hover { background: #26262e; }
+.familia.selecionada { background: #2a3a4e; outline: 1px solid #4e79a7; }
