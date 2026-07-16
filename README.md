@@ -20,13 +20,15 @@ sugerem — o usuário decide o que cada peça é e o que fazer com ela.
     meshbench apply peça.meshbench.json # aplica e exporta (out/)
     meshbench apply peça.meshbench.json --reimport  # após reexportar do CAD
 
-## Viewport 3D (Fase 2)
+## Viewport 3D (Fases 2–3)
 
-    meshbench serve peça.stl              # abre o preview 3D no navegador
+    meshbench serve peça.stl              # abre o editor 3D no navegador
     meshbench serve receita.meshbench.json
 
-Read-only nesta fase: o viewport mostra o resultado do pipeline (cores por
-grupo, origem, orçamento de faces). Edição interativa vem nas próximas fases.
+No navegador: clique numa peça (viewport ou lista) para selecionar a família,
+atribua operação/grupo/rótulo no inspetor, pré-visualize antes/depois e salve a
+receita. A contagem de faces por grupo atualiza ao vivo contra o orçamento de
+15k. Escala/orientação/origem interativas vêm nas fases 4–5.
 
 ### Desenvolvimento do frontend
 
