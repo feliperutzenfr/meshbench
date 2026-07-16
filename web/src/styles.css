@@ -4,9 +4,9 @@ body { font-family: system-ui, sans-serif; background: #16161a; color: #e8e8ec; 
 
 .app {
   display: grid;
-  grid-template-columns: 300px 1fr;
+  grid-template-columns: 300px 1fr 280px;
   grid-template-rows: 1fr auto;
-  grid-template-areas: "sidebar viewport" "sidebar statusbar";
+  grid-template-areas: "sidebar viewport inspector" "sidebar statusbar statusbar";
   height: 100%;
 }
 .sidebar { grid-area: sidebar; overflow-y: auto; background: #1e1e24; padding: 12px; border-right: 1px solid #2c2c34; }
@@ -35,3 +35,18 @@ body { font-family: system-ui, sans-serif; background: #16161a; color: #e8e8ec; 
 .familia { cursor: pointer; }
 .familia:hover { background: #26262e; }
 .familia.selecionada { background: #2a3a4e; outline: 1px solid #4e79a7; }
+
+.inspector { grid-area: inspector; overflow-y: auto; background: #1e1e24; padding: 12px; border-left: 1px solid #2c2c34; display: flex; flex-direction: column; gap: 10px; }
+.inspector h2 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; color: #9a9aa5; }
+.inspector .dica { font-size: 0.85rem; color: #9a9aa5; }
+.inspector .resumo { font-size: 0.85rem; }
+.campo { display: flex; flex-direction: column; gap: 3px; font-size: 0.8rem; color: #9a9aa5; }
+.campo input, .campo select { background: #16161a; color: #e8e8ec; border: 1px solid #2c2c34; border-radius: 6px; padding: 6px 8px; font-size: 0.85rem; }
+.ops { border: 1px solid #2c2c34; border-radius: 6px; padding: 8px; display: flex; flex-direction: column; gap: 4px; }
+.ops legend { font-size: 0.75rem; color: #9a9aa5; padding: 0 4px; }
+.op-radio { display: flex; gap: 6px; font-size: 0.85rem; align-items: center; }
+.btn { background: #26262e; color: #e8e8ec; border: 1px solid #3a3a46; border-radius: 6px; padding: 8px 10px; font-size: 0.85rem; cursor: pointer; }
+.btn:hover { background: #2e2e38; }
+.btn.primario { background: #2a4a6a; border-color: #4e79a7; }
+.btn:disabled { opacity: 0.5; cursor: default; }
+.msg { font-size: 0.8rem; color: #9a9aa5; word-break: break-all; }

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import Sidebar from "./components/Sidebar.jsx";
 import StatusBar from "./components/StatusBar.jsx";
 import Viewport from "./components/Viewport.jsx";
+import Inspector from "./components/Inspector.jsx";
 import { fetchProject } from "./lib/client.js";
 
 export default function App() {
@@ -46,6 +47,14 @@ export default function App() {
       <main className="viewport-wrap">
         <Viewport state={state} selected={selected} onSelect={handleSelect} preview={preview} />
       </main>
+      <Inspector
+        state={state}
+        entry={state.components.find((c) => c.id === selected) || null}
+        preview={preview}
+        onStateChange={handleStateChange}
+        onPreviewChange={setPreview}
+        onClearPreview={clearPreview}
+      />
       <StatusBar state={state} />
     </div>
   );
