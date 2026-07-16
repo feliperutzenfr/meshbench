@@ -1,5 +1,6 @@
 import { formatFaces } from "../lib/format.js";
 import { groupColor } from "../lib/palette.js";
+import { OP_LABELS } from "../lib/ops.js";
 
 function Familia({ c, cor, removida }) {
   const label = c.user_label || c.auto_class;
@@ -10,7 +11,7 @@ function Familia({ c, cor, removida }) {
         {c.instances}× {label} ({formatFaces(c.face_count)} f cada)
         {c.needs_review ? <span className="alerta"> ⚠ novo — revisar</span> : null}
       </span>
-      <span className="op">{c.operation.type}</span>
+      <span className="op">{OP_LABELS[c.operation.type] || c.operation.type}</span>
     </div>
   );
 }

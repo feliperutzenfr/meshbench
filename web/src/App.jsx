@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { fetchProject } from "./lib/client.js";
 import Sidebar from "./components/Sidebar.jsx";
 import StatusBar from "./components/StatusBar.jsx";
 import Viewport from "./components/Viewport.jsx";
@@ -8,13 +9,7 @@ export default function App() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    fetch("/api/project")
-      .then((r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json();
-      })
-      .then(setState)
-      .catch((e) => setError(String(e)));
+    fetchProject().then(setState).catch((e) => setError(String(e)));
   }, []);
 
   if (error) return <div className="tela-aviso">Erro ao carregar o projeto: {error}</div>;
