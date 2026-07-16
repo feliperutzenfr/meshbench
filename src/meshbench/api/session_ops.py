@@ -27,7 +27,11 @@ def _find_entry(project, comp_id):
 
 
 def _validated_op(op):
-    kind = (op or {}).get("type")
+    if not isinstance(op, dict):
+        raise ValueError(
+            "corpo sem 'operation' — envie {\"operation\": {...}}"
+        )
+    kind = op.get("type")
     if kind not in OPS:
         raise ValueError(
             f"operação '{kind}' desconhecida (disponíveis: {sorted(OPS)})"
@@ -43,6 +47,7 @@ def update_component(session, comp_id, changes):
     """
     with session.lock:
         entry = _find_entry(session.project, comp_id)
+        groups_len = len(session.project.groups)  # p/ desfazer grupo novo no rollback
         snapshot = (
             entry.operation,
             entry.group,
@@ -63,7 +68,9 @@ def update_component(session, comp_id, changes):
         try:
             reprocess(session)
         except Exception:
-            # reprocesso falhou — restaura a família, nada fica meio-editado
+            # reprocesso falhou — restaura a família E o grupo recém-criado
+            # (se houver), nada fica meio-editado
+            del session.project.groups[groups_len:]
             (
                 entry.operation,
                 entry.group,
@@ -84,7 +91,16 @@ def preview_op(session, comp_id, operation):
         op = _validated_op(operation)
         _find_entry(session.project, comp_id)
         clone = Project.from_dict(session.project.to_dict())
-        _find_entry(clone, comp_id).operation = op
+        clone_entry = _find_entry(clone, comp_id)
+        clone_entry.operation = op
+        if clone_entry.group is None:
+            # process() descarta (sem exportar) qualquer família com group=None
+            # (peça recém-importada sugerida para remover ou ainda não
+            # revisada) — no preview isso faria a operação "sumir" mesmo
+            # tendo rodado com sucesso. Só no CLONE (nunca na sessão real):
+            # atribui um grupo provisório só para o processo não descartar a
+            # malha; o preview usa só as malhas da família, ignora grupo.
+            clone_entry.group = "_preview"
         faces_before = sum(
             len(r.mesh.faces)
             for r in session.records

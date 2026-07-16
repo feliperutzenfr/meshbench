@@ -62,25 +62,30 @@ def load_session(path):
 
 
 def _project_state(session):
-    totals = {}
-    for r in session.records:
-        totals[r.group] = totals.get(r.group, 0) + len(r.mesh.faces)
-    dims = None
-    if session.records:
-        pts = np.vstack([r.mesh.bounds for r in session.records])
-        dims = (pts.max(axis=0) - pts.min(axis=0)).tolist()
-    return {
-        "name": session.project.name,
-        "source": session.project.source,
-        "scale": session.project.scale,
-        "groups": session.project.groups,
-        "components": [asdict(c) for c in session.project.components],
-        "warnings": session.warnings,
-        "group_faces": totals,
-        "face_budget": FACE_BUDGET,
-        "dims_mm": dims,
-        "revision": session.revision,
-    }
+    # RLock — reentra sem problema se o chamador já segura o lock (ex.:
+    # update_component termina com o lock ainda aberto e monta o estado logo
+    # em seguida); protege contra ler records/project a meio de um reprocesso
+    # concorrente.
+    with session.lock:
+        totals = {}
+        for r in session.records:
+            totals[r.group] = totals.get(r.group, 0) + len(r.mesh.faces)
+        dims = None
+        if session.records:
+            pts = np.vstack([r.mesh.bounds for r in session.records])
+            dims = (pts.max(axis=0) - pts.min(axis=0)).tolist()
+        return {
+            "name": session.project.name,
+            "source": session.project.source,
+            "scale": session.project.scale,
+            "groups": session.project.groups,
+            "components": [asdict(c) for c in session.project.components],
+            "warnings": session.warnings,
+            "group_faces": totals,
+            "face_budget": FACE_BUDGET,
+            "dims_mm": dims,
+            "revision": session.revision,
+        }
 
 
 def create_app(session):
@@ -92,14 +97,18 @@ def create_app(session):
 
     @app.get("/api/project/geometry")
     def get_geometry():
-        # sem registros (tudo removido ou sem grupo) o trimesh não exporta uma
-        # cena vazia — 404 em vez de 500
-        if not session.records:
-            return JSONResponse(
-                status_code=404,
-                content={"detail": "nenhuma peça no resultado — tudo removido ou sem grupo"},
-            )
-        glb = build_scene_glb(display_records(session.records))
+        # lock ao redor da checagem + build do GLB: sem isto um reprocesso
+        # concorrente poderia trocar session.records entre a checagem e a
+        # leitura, ou o build ler registros a meio de mutação
+        with session.lock:
+            # sem registros (tudo removido ou sem grupo) o trimesh não exporta
+            # uma cena vazia — 404 em vez de 500
+            if not session.records:
+                return JSONResponse(
+                    status_code=404,
+                    content={"detail": "nenhuma peça no resultado — tudo removido ou sem grupo"},
+                )
+            glb = build_scene_glb(display_records(session.records))
         return Response(content=glb, media_type="model/gltf-binary")
 
     @app.patch("/api/component/{comp_id}")

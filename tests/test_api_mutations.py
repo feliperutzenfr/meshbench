@@ -31,6 +31,15 @@ def test_patch_atualiza_e_retorna_estado(tmp_path, small_sphere):
     assert state["revision"] == state0["revision"] + 1
 
 
+def test_patch_cria_grupo_novo(tmp_path, small_sphere):
+    client, session = _client(tmp_path, small_sphere)
+    comp = session.project.components[0].id
+    r = client.patch(f"/api/component/{comp}", json={"group": "novo_grupo"})
+    assert r.status_code == 200
+    state = r.json()
+    assert "novo_grupo" in [g["name"] for g in state["groups"]]
+
+
 def test_patch_id_inexistente_404(tmp_path, small_sphere):
     client, _ = _client(tmp_path, small_sphere)
     r = client.patch("/api/component/c99", json={"user_label": "x"})
@@ -65,6 +74,14 @@ def test_preview_retorna_glb_sem_mutar(tmp_path, small_sphere):
     assert r.headers["X-Faces-Before"] == "320"
     assert 0 < int(r.headers["X-Faces-After"]) <= 100
     assert session.revision == rev  # preview não muta
+
+
+def test_preview_sem_operation_422(tmp_path, small_sphere):
+    client, session = _client(tmp_path, small_sphere)
+    comp = session.project.components[0].id
+    r = client.post(f"/api/preview/{comp}", json={})
+    assert r.status_code == 422
+    assert "operation" in r.json()["detail"]
 
 
 def test_preview_remove_404(tmp_path, small_sphere):

@@ -10,6 +10,14 @@ function Familia({ c, cor, removida, selecionada, onSelect }) {
         "familia" + (removida ? " removida" : "") + (selecionada ? " selecionada" : "")
       }
       onClick={() => onSelect(c.id)}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onSelect(c.id);
+        }
+      }}
     >
       <span className="cor" style={{ background: cor }} />
       <span>

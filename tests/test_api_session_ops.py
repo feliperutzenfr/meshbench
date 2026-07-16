@@ -84,6 +84,18 @@ def test_preview_nao_muta_sessao(tmp_path, small_sphere):
     assert sum(len(r.mesh.faces) for r in s.records) == 320
 
 
+def test_preview_funciona_em_familia_sem_grupo(tmp_path, small_sphere):
+    # esfera recém-importada: sugerida pra remover, group=None — o preview
+    # não pode confundir isso com "operação não produziu malha" (a operação
+    # rodou normalmente, só a família nunca teve grupo atribuído)
+    s = _session(tmp_path, small_sphere)
+    comp = s.project.components[0].id
+    assert s.project.components[0].group is None
+    glb, before, after = preview_op(s, comp, {"type": "keep", "params": {}})
+    assert glb is not None and glb[:4] == b"glTF"
+    assert after == 320
+
+
 def test_preview_op_que_remove_retorna_none(tmp_path, small_sphere):
     s = _session(tmp_path, small_sphere)
     comp = s.project.components[0].id
@@ -106,6 +118,7 @@ def test_update_component_reverte_se_reprocesso_falha(
     grupo_antes = entry.group
     review_antes = entry.needs_review
     rev_antes = s.revision
+    groups_antes = list(s.project.groups)
 
     def _explode(*args, **kwargs):
         raise RuntimeError("boom")
@@ -115,12 +128,17 @@ def test_update_component_reverte_se_reprocesso_falha(
         update_component(
             s,
             entry.id,
-            {"operation": {"type": "keep", "params": {}}, "group": "saida"},
+            {
+                "operation": {"type": "keep", "params": {}},
+                "group": "grupo_novo_que_nao_deve_sobreviver",
+            },
         )
     # sessão restaurada — nada meio-editado
     assert entry.operation == op_antes
     assert entry.group == grupo_antes
     assert entry.needs_review == review_antes
+    # grupo novo criado antes do reprocesso falhar não deve vazar
+    assert s.project.groups == groups_antes
     assert s.revision == rev_antes
 
 
