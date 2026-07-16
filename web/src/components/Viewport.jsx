@@ -28,6 +28,8 @@ export default function Viewport({ state, selected, onSelect, preview }) {
   const [erro, setErro] = useState(null);
   const [aviso, setAviso] = useState(null);
   const meshesByCompRef = useRef(new Map()); // compId -> [meshes]
+  const previewGroupRef = useRef(null);
+  const sceneRef = useRef(null);
   const selectedRef = useRef(selected);
   const onSelectRef = useRef(onSelect);
   onSelectRef.current = onSelect;
@@ -41,6 +43,7 @@ export default function Viewport({ state, selected, onSelect, preview }) {
     const meshesByComp = new Map();
     meshesByCompRef.current = meshesByComp;
     const scene = new THREE.Scene();
+    sceneRef.current = scene;
     scene.background = new THREE.Color(0x16161a);
 
     const camera = new THREE.PerspectiveCamera(
@@ -192,6 +195,8 @@ export default function Viewport({ state, selected, onSelect, preview }) {
       renderer.domElement.removeEventListener("pointerdown", onPointerDown);
       renderer.domElement.removeEventListener("pointerup", onPointerUp);
       controls.dispose();
+      previewGroupRef.current = null;
+      sceneRef.current = null;
       disposeSceneResources(scene);
       renderer.dispose();
       mount.removeChild(renderer.domElement);
@@ -208,6 +213,62 @@ export default function Viewport({ state, selected, onSelect, preview }) {
       }
     }
   }, [selected, state]);
+
+  // overlay de preview: "depois" esconde as originais da família e mostra o
+  // GLB pré-visualizado; "antes" (ou sem preview) restaura as originais
+  useEffect(() => {
+    const scene = sceneRef.current;
+    if (!scene) return;
+    const restore = () => {
+      if (previewGroupRef.current) {
+        scene.remove(previewGroupRef.current);
+        disposeSceneResources(previewGroupRef.current);
+        previewGroupRef.current = null;
+      }
+      for (const meshes of meshesByCompRef.current.values()) {
+        for (const m of meshes) m.visible = true;
+      }
+    };
+    restore();
+    if (!preview || preview.mostrando !== "depois") return;
+
+    const originals = meshesByCompRef.current.get(preview.componentId) || [];
+    for (const m of originals) m.visible = false;
+
+    const groupNames = state.groups.map((g) => g.name);
+    const groupOf = {};
+    for (const c of state.components) groupOf[c.id] = c.group;
+    let disposed = false;
+    new GLTFLoader().load(
+      preview.url,
+      (gltf) => {
+        if (disposed) {
+          disposeSceneResources(gltf.scene);
+          return;
+        }
+        gltf.scene.traverse((obj) => {
+          if (obj.isMesh) {
+            if (!obj.geometry.attributes.normal) obj.geometry.computeVertexNormals();
+            obj.material = new THREE.MeshStandardMaterial({
+              color: groupColor(groupOf[preview.componentId], groupNames),
+              emissive: SELECT_EMISSIVE,
+              metalness: 0.1,
+              roughness: 0.75,
+              side: THREE.DoubleSide,
+            });
+          }
+        });
+        previewGroupRef.current = gltf.scene;
+        scene.add(gltf.scene);
+      },
+      undefined,
+      (err) => console.error("falha ao carregar o preview", err),
+    );
+    return () => {
+      disposed = true;
+      restore();
+    };
+  }, [preview, state]);
 
   return (
     <div className="viewport" ref={mountRef}>

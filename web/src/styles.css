@@ -50,3 +50,7 @@ body { font-family: system-ui, sans-serif; background: #16161a; color: #e8e8ec; 
 .btn.primario { background: #2a4a6a; border-color: #4e79a7; }
 .btn:disabled { opacity: 0.5; cursor: default; }
 .msg { font-size: 0.8rem; color: #9a9aa5; word-break: break-all; }
+.preview-bloco { display: flex; flex-direction: column; gap: 6px; }
+.preview { display: flex; gap: 6px; align-items: center; font-size: 0.8rem; flex-wrap: wrap; }
+.btn.mini { padding: 3px 8px; font-size: 0.75rem; }
+.btn.mini.ativo { background: #2a4a6a; border-color: #4e79a7; }

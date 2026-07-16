@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { patchComponent, saveRecipe } from "../lib/client.js";
+import { patchComponent, previewComponent, saveRecipe } from "../lib/client.js";
 import { formatFaces } from "../lib/format.js";
 import { OP_LABELS, OP_TYPES, coerceParams, opDefaults } from "../lib/ops.js";
 
@@ -112,6 +112,21 @@ export default function Inspector({
     setBusy(false);
   };
 
+  const preVisualizar = async () => {
+    setBusy(true);
+    setMsg(null);
+    try {
+      const p = await previewComponent(entry.id, {
+        type: opType,
+        params: coerceParams(opType, params),
+      });
+      onPreviewChange({ componentId: entry.id, ...p, mostrando: "depois" });
+    } catch (e) {
+      setMsg(`erro: ${e.message}`);
+    }
+    setBusy(false);
+  };
+
   const salvar = async () => {
     setBusy(true);
     setMsg(null);
@@ -148,6 +163,33 @@ export default function Inspector({
             ))}
           </fieldset>
           <ParamsForm opType={opType} params={params} setParam={setParam} />
+          <div className="preview-bloco">
+            <button className="btn" disabled={busy} onClick={preVisualizar}>
+              Pré-visualizar
+            </button>
+            {preview && preview.componentId === entry.id && (
+              <div className="preview">
+                <span>
+                  {formatFaces(preview.facesBefore)} → {formatFaces(preview.facesAfter)} f
+                </span>
+                <button
+                  className={"btn mini" + (preview.mostrando === "antes" ? " ativo" : "")}
+                  onClick={() => onPreviewChange({ ...preview, mostrando: "antes" })}
+                >
+                  antes
+                </button>
+                <button
+                  className={"btn mini" + (preview.mostrando === "depois" ? " ativo" : "")}
+                  onClick={() => onPreviewChange({ ...preview, mostrando: "depois" })}
+                >
+                  depois
+                </button>
+                <button className="btn mini" onClick={onClearPreview}>
+                  fechar
+                </button>
+              </div>
+            )}
+          </div>
           <label className="campo">
             <span>grupo</span>
             <select value={group} onChange={(e) => setGroup(e.target.value)}>
