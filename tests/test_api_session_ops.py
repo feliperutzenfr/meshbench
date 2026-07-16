@@ -93,6 +93,37 @@ def test_preview_op_que_remove_retorna_none(tmp_path, small_sphere):
     assert before == 320 and after == 0
 
 
+def test_update_component_reverte_se_reprocesso_falha(
+    tmp_path, small_sphere, monkeypatch
+):
+    import pytest
+
+    import meshbench.api.session_ops as session_ops
+
+    s = _session(tmp_path, small_sphere)
+    entry = s.project.components[0]
+    op_antes = entry.operation
+    grupo_antes = entry.group
+    review_antes = entry.needs_review
+    rev_antes = s.revision
+
+    def _explode(*args, **kwargs):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(session_ops, "process", _explode)
+    with pytest.raises(RuntimeError, match="boom"):
+        update_component(
+            s,
+            entry.id,
+            {"operation": {"type": "keep", "params": {}}, "group": "saida"},
+        )
+    # sessão restaurada — nada meio-editado
+    assert entry.operation == op_antes
+    assert entry.group == grupo_antes
+    assert entry.needs_review == review_antes
+    assert s.revision == rev_antes
+
+
 def test_save_recipe_grava_e_recarrega(tmp_path, small_sphere):
     s = _session(tmp_path, small_sphere)
     update_component(s, s.project.components[0].id, {"user_label": "bolinha"})

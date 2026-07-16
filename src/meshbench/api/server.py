@@ -29,7 +29,7 @@ class ProjectSession:
     raw_mesh: object = None
     recipe_path: Path | None = None
     revision: int = 0
-    lock: threading.Lock = field(default_factory=threading.Lock)
+    lock: threading.RLock = field(default_factory=threading.RLock)
 
 
 def load_session(path):

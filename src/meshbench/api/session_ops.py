@@ -10,12 +10,13 @@ from meshbench.core.project import Project
 
 def reprocess(session):
     """Reexecuta o pipeline (etapas 2-7) com a malha crua em cache."""
-    records, warnings = process(
-        session.project, session.base_dir, mesh=session.raw_mesh
-    )
-    session.records = records
-    session.warnings = warnings
-    session.revision += 1
+    with session.lock:  # RLock — seguro também quando chamado de update_component
+        records, warnings = process(
+            session.project, session.base_dir, mesh=session.raw_mesh
+        )
+        session.records = records
+        session.warnings = warnings
+        session.revision += 1
 
 
 def _find_entry(project, comp_id):
@@ -42,6 +43,12 @@ def update_component(session, comp_id, changes):
     """
     with session.lock:
         entry = _find_entry(session.project, comp_id)
+        snapshot = (
+            entry.operation,
+            entry.group,
+            entry.user_label,
+            entry.needs_review,
+        )
         if "operation" in changes:
             entry.operation = _validated_op(changes["operation"])
         if "group" in changes:
@@ -53,7 +60,17 @@ def update_component(session, comp_id, changes):
         if "user_label" in changes:
             entry.user_label = changes["user_label"] or None
         entry.needs_review = False
-        reprocess(session)
+        try:
+            reprocess(session)
+        except Exception:
+            # reprocesso falhou — restaura a família, nada fica meio-editado
+            (
+                entry.operation,
+                entry.group,
+                entry.user_label,
+                entry.needs_review,
+            ) = snapshot
+            raise
 
 
 def preview_op(session, comp_id, operation):
