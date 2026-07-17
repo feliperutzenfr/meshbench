@@ -5,10 +5,11 @@ body { font-family: system-ui, sans-serif; background: #16161a; color: #e8e8ec; 
 .app {
   display: grid;
   grid-template-columns: 300px 1fr 280px;
-  grid-template-rows: 1fr auto auto;
+  grid-template-rows: 1fr auto auto auto;
   grid-template-areas:
     "sidebar viewport inspector"
     "sidebar scalebar scalebar"
+    "sidebar orientbar orientbar"
     "sidebar statusbar statusbar";
   height: 100%;
 }
@@ -70,3 +71,12 @@ body { font-family: system-ui, sans-serif; background: #16161a; color: #e8e8ec; 
 .dims.suspeito, .dims-resultado.suspeito { color: #e15759; }
 .scalebar .msg { font-size: 0.78rem; color: #9a9aa5; }
 .scalebar .msg.erro { color: #e15759; }
+
+.orientbar { grid-area: orientbar; background: #1e1e24; border-top: 1px solid #2c2c34; padding: 8px 14px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.orientbar .rotulo { font-size: 0.75rem; letter-spacing: 0.06em; color: #9a9aa5; }
+.orientbar select { background: #16161a; color: #e8e8ec; border: 1px solid #2c2c34; border-radius: 6px; padding: 4px 6px; font-size: 0.82rem; }
+.orientbar input { background: #16161a; color: #e8e8ec; border: 1px solid #2c2c34; border-radius: 6px; padding: 4px 6px; font-size: 0.82rem; width: 56px; }
+.par-90, .grupo-espelho, .grupo-livre, .grupo-undo { display: flex; align-items: center; gap: 4px; }
+.grupo-espelho { font-size: 0.78rem; color: #9a9aa5; }
+.grupo-undo { margin-left: auto; }
+.grupo-undo .btn { font-size: 1rem; padding: 3px 10px; }

@@ -4,6 +4,7 @@ import StatusBar from "./components/StatusBar.jsx";
 import Viewport from "./components/Viewport.jsx";
 import Inspector from "./components/Inspector.jsx";
 import ScaleBar from "./components/ScaleBar.jsx";
+import OrientBar from "./components/OrientBar.jsx";
 import { fetchProject } from "./lib/client.js";
 
 export default function App() {
@@ -66,6 +67,7 @@ export default function App() {
         onClearPreview={clearPreview}
       />
       <ScaleBar state={state} onStateChange={handleStateChange} />
+      <OrientBar state={state} onStateChange={handleStateChange} />
       <StatusBar state={state} />
     </div>
   );
