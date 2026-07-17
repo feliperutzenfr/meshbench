@@ -72,6 +72,7 @@ def test_validacoes_422(tmp_path, box):
         ({"scale": {"mode": "per_axis", "per_axis": [1, 2]}}, "per_axis"),
         ({"scale": {"mode": "fit_dimension", "fit": {"axis": "w", "target_mm": 10}}}, "fit.axis"),
         ({"units": "jardas"}, "unidade"),
+        ({"scale": 5}, "inválido"),
     ]
     for body, trecho in casos:
         r = client.patch("/api/scale", json=body)
