@@ -1,3 +1,4 @@
+import pytest
 import trimesh
 
 from meshbench.core.analyze.components import split_components
@@ -68,3 +69,49 @@ def test_rematch_preserva_escolhas(tmp_path, box, small_sphere):
     assert len(novos) == 1  # o cilindro
 
     assert any("sumiu" in a for a in avisos)  # a esfera desapareceu
+
+
+def test_from_dict_orient_parcial_ganha_shape_completo():
+    """Receita editada à mão com orient parcial (só axis_remap) não pode quebrar
+    o frontend (OrientBar acessa orient.rotations/orient.mirror) — from_dict
+    completa o dict com os defaults."""
+    d = {
+        "name": "teste",
+        "source": {"path": "x.stl"},
+        "orient": {"axis_remap": "cad_to_promob"},
+    }
+    p = Project.from_dict(d)
+    assert p.orient == {
+        "axis_remap": "cad_to_promob",
+        "custom_remap": None,
+        "rotations": [],
+        "mirror": [],
+    }
+
+
+def test_from_dict_orient_custom_sem_custom_remap_levanta_erro_pt_br():
+    d = {
+        "name": "teste",
+        "source": {"path": "x.stl"},
+        "orient": {"axis_remap": "custom", "custom_remap": None},
+    }
+    with pytest.raises(ValueError, match="custom"):
+        Project.from_dict(d)
+
+
+def test_from_dict_scale_parcial_ganha_shape_completo():
+    d = {
+        "name": "teste",
+        "source": {"path": "x.stl"},
+        "scale": {"mode": "uniform", "value": 2},
+    }
+    p = Project.from_dict(d)
+    assert p.scale == {
+        "mode": "uniform",
+        "from_unit": "mm",
+        "to_unit": "mm",
+        "value": 2,
+        "per_axis": None,
+        "fit": None,
+        "factor": [1, 1, 1],
+    }

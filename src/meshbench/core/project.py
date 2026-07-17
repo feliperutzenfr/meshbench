@@ -83,6 +83,18 @@ class Project:
     def from_dict(cls, d):
         d = dict(d)
         d["components"] = [ComponentEntry(**c) for c in d.get("components", [])]
+        d["scale"] = {**DEFAULT_SCALE, **d.get("scale", {})}
+        d["orient"] = {**DEFAULT_ORIENT, **d.get("orient", {})}
+        d["origin"] = {**DEFAULT_ORIGIN, **d.get("origin", {})}
+        d["export"] = {**DEFAULT_EXPORT, **d.get("export", {})}
+        custom_remap = d["orient"]["custom_remap"]
+        if d["orient"]["axis_remap"] == "custom" and not (
+            isinstance(custom_remap, (list, tuple)) and len(custom_remap) == 3
+        ):
+            raise ValueError(
+                "receita inválida: axis_remap 'custom' exige custom_remap "
+                "com 3 eixos (±x, ±y, ±z)"
+            )
         return cls(**d)
 
     def save(self, path):
