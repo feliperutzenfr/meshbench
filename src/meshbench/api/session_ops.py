@@ -12,6 +12,57 @@ from meshbench.core.project import Project
 from meshbench.core.transform.axes import REMAPS
 
 
+UNDO_CAP = 50
+
+
+def _push_undo(session, before_dict):
+    """Empilha o snapshot pré-mutação. Chamar só APÓS reprocesso bem-sucedido."""
+    session.undo_stack.append(before_dict)
+    if len(session.undo_stack) > UNDO_CAP:
+        session.undo_stack.pop(0)
+    session.redo_stack.clear()
+
+
+def _restore(session, project_dict):
+    previous = session.project
+    session.project = Project.from_dict(project_dict)
+    try:
+        reprocess(session)
+    except Exception:
+        session.project = previous
+        raise
+
+
+def undo(session):
+    """Desfaz a última mutação (global — component/scale/orient)."""
+    with session.lock:
+        if not session.undo_stack:
+            raise ValueError("nada para desfazer")
+        target = session.undo_stack.pop()
+        current = session.project.to_dict()
+        try:
+            _restore(session, target)
+        except Exception:
+            session.undo_stack.append(target)
+            raise
+        session.redo_stack.append(current)
+
+
+def redo(session):
+    """Refaz a última mutação desfeita."""
+    with session.lock:
+        if not session.redo_stack:
+            raise ValueError("nada para refazer")
+        target = session.redo_stack.pop()
+        current = session.project.to_dict()
+        try:
+            _restore(session, target)
+        except Exception:
+            session.redo_stack.append(target)
+            raise
+        session.undo_stack.append(current)
+
+
 def reprocess(session):
     """Reexecuta o pipeline (etapas 2-7) com a malha crua em cache."""
     with session.lock:  # RLock — seguro também quando chamado de update_component
@@ -50,6 +101,7 @@ def update_component(session, comp_id, changes):
     Editar uma família limpa needs_review — o usuário acabou de revisá-la.
     """
     with session.lock:
+        before = session.project.to_dict()
         entry = _find_entry(session.project, comp_id)
         groups_len = len(session.project.groups)  # p/ desfazer grupo novo no rollback
         snapshot = (
@@ -82,6 +134,7 @@ def update_component(session, comp_id, changes):
                 entry.needs_review,
             ) = snapshot
             raise
+        _push_undo(session, before)
 
 
 def preview_op(session, comp_id, operation):
@@ -189,6 +242,7 @@ def update_scale(session, changes):
     reprocesso falhar — nada fica meio-editado.
     """
     with session.lock:
+        before = session.project.to_dict()
         new_scale = None
         new_units = None
         if "scale" in changes:
@@ -223,6 +277,7 @@ def update_scale(session, changes):
             else:
                 source.pop("units_confirmed", None)
             raise
+        _push_undo(session, before)
 
 
 def normalize_rotations(rotations):
@@ -300,6 +355,7 @@ def _validated_orient(current, changes):
 def update_orient(session, changes):
     """Aplica mudança de orientação e reprocessa. Rollback se o reprocesso falhar."""
     with session.lock:
+        before = session.project.to_dict()
         new_orient = _validated_orient(session.project.orient, changes)
         # referência basta como snapshot: process() não muta orient in place
         # (ao contrário de scale["factor"]) e nós substituímos o dict inteiro
@@ -310,3 +366,4 @@ def update_orient(session, changes):
         except Exception:
             session.project.orient = snapshot
             raise
+        _push_undo(session, before)

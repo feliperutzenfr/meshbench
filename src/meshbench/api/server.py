@@ -12,7 +12,9 @@ from fastapi.staticfiles import StaticFiles
 from meshbench.api.geometry import build_scene_glb, display_records
 from meshbench.api.session_ops import (
     preview_op,
+    redo,
     save_recipe,
+    undo,
     update_component,
     update_orient,
     update_scale,
@@ -42,6 +44,8 @@ class ProjectSession:
     # a mesma revision (ex.: reconexão) sem pagar o custo de reconstruir o GLB;
     # a invalidação é automática porque toda mutação incrementa revision.
     glb_cache: tuple | None = None
+    undo_stack: list = field(default_factory=list)
+    redo_stack: list = field(default_factory=list)
 
 
 def load_session(path):
@@ -102,6 +106,8 @@ def _project_state(session):
                 else None
             ),
             "revision": session.revision,
+            "can_undo": len(session.undo_stack) > 0,
+            "can_redo": len(session.redo_stack) > 0,
         }
 
 
@@ -175,6 +181,22 @@ def create_app(session):
             update_orient(session, changes)
         except ValueError as e:
             return JSONResponse(status_code=422, content={"detail": str(e)})
+        return JSONResponse(_project_state(session))
+
+    @app.post("/api/undo")
+    def post_undo():
+        try:
+            undo(session)
+        except ValueError as e:
+            return JSONResponse(status_code=409, content={"detail": str(e)})
+        return JSONResponse(_project_state(session))
+
+    @app.post("/api/redo")
+    def post_redo():
+        try:
+            redo(session)
+        except ValueError as e:
+            return JSONResponse(status_code=409, content={"detail": str(e)})
         return JSONResponse(_project_state(session))
 
     @app.post("/api/project/save")
