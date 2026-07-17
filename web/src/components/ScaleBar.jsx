@@ -46,7 +46,8 @@ export default function ScaleBar({ state, onStateChange }) {
       axis: s.fit?.axis || "x",
       target: s.fit?.target_mm ?? "",
     });
-    setMsg(null);
+    // não limpar msg aqui: o "aplicado ✓" é setado logo DEPOIS do PATCH mudar
+    // o scale — limpar no sync apagaria o feedback no mesmo instante
   }, [scaleJson]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const setField = (k, v) => setFields((f) => ({ ...f, [k]: v }));

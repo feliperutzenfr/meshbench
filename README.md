@@ -20,7 +20,7 @@ sugerem — o usuário decide o que cada peça é e o que fazer com ela.
     meshbench apply peça.meshbench.json # aplica e exporta (out/)
     meshbench apply peça.meshbench.json --reimport  # após reexportar do CAD
 
-## Viewport 3D (Fases 2–3)
+## Viewport 3D (Fases 2–4)
 
     meshbench serve peça.stl              # abre o editor 3D no navegador
     meshbench serve receita.meshbench.json
@@ -28,7 +28,15 @@ sugerem — o usuário decide o que cada peça é e o que fazer com ela.
 No navegador: clique numa peça (viewport ou lista) para selecionar a família,
 atribua operação/grupo/rótulo no inspetor, pré-visualize antes/depois e salve a
 receita. A contagem de faces por grupo atualiza ao vivo contra o orçamento de
-15k. Escala/orientação/origem interativas vêm nas fases 4–5.
+15k. Orientação/origem interativas (gizmos) vêm na fase 5.
+
+### Escala e unidades (Fase 4)
+
+A barra ESCALA converte unidades (pol/cm/m → mm), aplica fator uniforme ou por
+eixo, e ajusta uma dimensão-alvo ("quero largura = 450 mm"). Quando o arquivo
+tem unidade ambígua (STL não guarda unidade), um banner compara as
+possibilidades em tamanho humano e pede confirmação. Dimensões suspeitas
+(< 1 mm ou > 5 m) ficam em vermelho.
 
 ### Desenvolvimento do frontend
 

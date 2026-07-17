@@ -16,7 +16,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Viewport (fase 2): `.venv/Scripts/python -m meshbench serve <arquivo>` (porta 8765)
 - Frontend: `npm --prefix web install|run build|run dev|test` (build vai para `src/meshbench/api/static/`, gitignored)
 
-Phases 1 (core+CLI), 2 (viewport) and 3 (selection + interactive ops + preview + save) are implemented. Phases 4+ (interactive scale/orient/origin, export UI, gizmos) are not yet.
+Phases 1 (core+CLI), 2 (viewport), 3 (selection/ops/preview/save) and 4 (interactive scale & units) are implemented. Phases 5+ (interactive orient/origin gizmos, export UI, re-import UI) are not yet.
 
 ## What this project is
 
