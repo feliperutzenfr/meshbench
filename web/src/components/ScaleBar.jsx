@@ -30,7 +30,9 @@ export default function ScaleBar({ state, onStateChange }) {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState(null);
 
-  // sincroniza o formulário com a escala vigente da receita
+  // sincroniza o formulário com a escala vigente da receita; keyed no conteúdo
+  // da escala para não descartar edições em andamento em mutações não relacionadas
+  const scaleJson = JSON.stringify(state.scale);
   useEffect(() => {
     const s = state.scale || {};
     setMode(s.mode || "unit_convert");
@@ -45,7 +47,7 @@ export default function ScaleBar({ state, onStateChange }) {
       target: s.fit?.target_mm ?? "",
     });
     setMsg(null);
-  }, [state.revision]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [scaleJson]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const setField = (k, v) => setFields((f) => ({ ...f, [k]: v }));
 
@@ -54,6 +56,7 @@ export default function ScaleBar({ state, onStateChange }) {
     setMsg(null);
     try {
       onStateChange(await patchScale(changes));
+      setMsg("aplicado ✓");
     } catch (e) {
       setMsg(`erro: ${e.message}`);
     }
@@ -173,7 +176,7 @@ export default function ScaleBar({ state, onStateChange }) {
         <span className={"dims-resultado" + (isSuspiciousDims(state.dims_mm) ? " suspeito" : "")}>
           → {formatDims(state.dims_mm)}
         </span>
-        {msg && <span className="msg">{msg}</span>}
+        {msg && <span className={"msg" + (msg.startsWith("erro") ? " erro" : "")}>{msg}</span>}
       </div>
     </div>
   );

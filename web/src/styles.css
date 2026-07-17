@@ -68,4 +68,5 @@ body { font-family: system-ui, sans-serif; background: #16161a; color: #e8e8ec; 
 .alerta-inline { font-size: 0.75rem; color: #f2b84b; }
 .dims-resultado { font-weight: 600; font-size: 0.95rem; }
 .dims.suspeito, .dims-resultado.suspeito { color: #e15759; }
-.scalebar .msg { font-size: 0.78rem; color: #e15759; }
+.scalebar .msg { font-size: 0.78rem; color: #9a9aa5; }
+.scalebar .msg.erro { color: #e15759; }
