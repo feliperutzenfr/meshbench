@@ -20,7 +20,7 @@ sugerem — o usuário decide o que cada peça é e o que fazer com ela.
     meshbench apply peça.meshbench.json # aplica e exporta (out/)
     meshbench apply peça.meshbench.json --reimport  # após reexportar do CAD
 
-## Viewport 3D (Fases 2–4)
+## Viewport 3D (Fases 2–5a)
 
     meshbench serve peça.stl              # abre o editor 3D no navegador
     meshbench serve receita.meshbench.json
@@ -37,6 +37,13 @@ eixo, e ajusta uma dimensão-alvo ("quero largura = 450 mm"). Quando o arquivo
 tem unidade ambígua (STL não guarda unidade), um banner compara as
 possibilidades em tamanho humano e pede confirmação. Dimensões suspeitas
 (< 1 mm ou > 5 m) ficam em vermelho.
+
+### Orientação e desfazer (Fase 5a)
+
+A barra ORIENTA aplica presets de eixos (ex.: CAD → Promob), giros de 90° por
+botão com preview imediato ("ver > deduzir"), espelho por eixo e rotação livre
+em graus (ordem X→Y→Z). Todo o histórico de edições tem desfazer/refazer (↶ ↷).
+Origem interativa e gizmo vêm na fase 5b.
 
 ### Desenvolvimento do frontend
 
