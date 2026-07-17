@@ -1,9 +1,12 @@
 import { budgetLevel, formatDims, formatFaces } from "../lib/format.js";
+import { isSuspiciousDims } from "../lib/scale.js";
 
 export default function StatusBar({ state }) {
   return (
     <footer className="statusbar">
-      <span className="dims">{formatDims(state.dims_mm)}</span>
+      <span className={"dims" + (isSuspiciousDims(state.dims_mm) ? " suspeito" : "")}>
+        {formatDims(state.dims_mm)}
+      </span>
       {Object.entries(state.group_faces).map(([g, faces]) => (
         <span key={g} className="budget">
           <span className={"luz " + budgetLevel(faces)} />
