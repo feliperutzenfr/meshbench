@@ -2,6 +2,8 @@
 (Aplicar/Salvar); o preview clona o projeto e NUNCA toca na sessão; o
 reprocesso usa a malha crua em cache — nunca relê o arquivo fonte."""
 
+import math
+
 from meshbench.api.geometry import build_scene_glb, display_records
 from meshbench.core.analyze.units import UNIT_MM
 from meshbench.core.ops import OPS
@@ -236,7 +238,11 @@ def normalize_rotations(rotations):
         if not isinstance(r, dict) or r.get("axis") not in ("x", "y", "z"):
             raise ValueError("eixo de rotação inválido (use x, y ou z)")
         deg = r.get("deg")
-        if isinstance(deg, bool) or not isinstance(deg, (int, float)):
+        if (
+            isinstance(deg, bool)
+            or not isinstance(deg, (int, float))
+            or not math.isfinite(deg)
+        ):
             raise ValueError("graus de rotação devem ser numéricos")
         deg = float(deg) % 360.0
         if deg == 0.0:
@@ -257,6 +263,10 @@ def _validated_orient(current, changes):
     axis_remap = changes.get("axis_remap", current.get("axis_remap", "identidade"))
     custom_remap = changes.get("custom_remap", current.get("custom_remap"))
     if axis_remap == "custom":
+        if not isinstance(custom_remap, (list, tuple)):
+            raise ValueError(
+                "custom_remap deve ter os 3 eixos (±x, ±y, ±z), cada um uma vez"
+            )
         base = [str(a).lstrip("+-") for a in (custom_remap or [])]
         if sorted(base) != ["x", "y", "z"]:
             raise ValueError(
@@ -282,7 +292,7 @@ def _validated_orient(current, changes):
     return {
         "axis_remap": axis_remap,
         "custom_remap": list(custom_remap) if custom_remap else None,
-        "rotations": rotations,
+        "rotations": list(rotations),
         "mirror": list(mirror),
     }
 

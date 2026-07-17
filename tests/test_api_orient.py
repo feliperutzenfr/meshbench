@@ -27,6 +27,10 @@ def test_normalize_rotations():
         normalize_rotations([{"axis": "w", "deg": 90}])
     with pytest.raises(ValueError, match="graus"):
         normalize_rotations([{"axis": "x", "deg": "muito"}])
+    with pytest.raises(ValueError, match="graus"):
+        normalize_rotations([{"axis": "x", "deg": float("inf")}])
+    with pytest.raises(ValueError, match="graus"):
+        normalize_rotations([{"axis": "x", "deg": float("nan")}])
 
 
 def test_patch_orient_rotacao_90(tmp_path, box):
@@ -73,6 +77,7 @@ def test_patch_orient_validacoes_422(tmp_path, box):
         ({"axis_remap": "custom"}, "custom_remap"),
         ({"axis_remap": "custom", "custom_remap": ["x", "y"]}, "custom_remap"),
         ({"axis_remap": "custom", "custom_remap": ["x", "x", "y"]}, "custom_remap"),
+        ({"axis_remap": "custom", "custom_remap": "xzy"}, "custom_remap"),
         ({"mirror": ["x", "x"]}, "mirror"),
         ({"mirror": ["w"]}, "mirror"),
         ({"rotations": [{"axis": "q", "deg": 90}]}, "eixo"),
