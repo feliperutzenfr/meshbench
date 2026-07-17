@@ -41,6 +41,15 @@ def test_process_nao_exporta(tmp_path, box, small_sphere):
     assert not (tmp_path / "out").exists()
 
 
+def test_process_avisa_decimacao_sem_efeito(tmp_path, box, small_sphere):
+    p = _project(tmp_path, box, small_sphere)
+    caixa = [c for c in p.components if c.face_count == 12][0]
+    # alvo acima da contagem atual: decimação garantidamente não reduz nada
+    caixa.operation = {"type": "decimate", "params": {"face_count": 200}}
+    _, warnings = process(p, tmp_path)
+    assert any("decimação não reduziu as faces" in w for w in warnings)
+
+
 def test_process_label(tmp_path, box, small_sphere):
     p = _project(tmp_path, box, small_sphere)
     caixa = [c for c in p.components if c.face_count == 12][0]

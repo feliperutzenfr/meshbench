@@ -160,6 +160,16 @@ def process(project, base_dir, mesh=None):
             warnings.append(
                 f"operação '{tipo}' não produziu malha para {entry.id} — peça fora da saída"
             )
+        if (
+            entry.operation.get("type") == "decimate"
+            and processed
+            and sum(len(m.faces) for m in processed)
+            >= sum(len(m.faces) for m in fam.meshes)
+        ):
+            warnings.append(
+                f"decimação não reduziu as faces de {entry.id} — "
+                "alvo ≥ faces atuais ou geometria que a decimação não simplifica"
+            )
         # feature_meshes guarda as malhas pós-OPS (pré-ORIENT); apply_orient faz
         # mesh.copy() antes de mutar, então reaplicá-lo aqui e de novo em `grouped`
         # (via feature_ref) não causa transformação em dobro — cada chamada parte
