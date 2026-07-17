@@ -60,6 +60,27 @@ export async function saveRecipe() {
   return r.json();
 }
 
+export async function patchOrient(changes) {
+  const r = await checkOk(
+    await fetch("/api/orient", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(changes),
+    }),
+  );
+  return r.json();
+}
+
+export async function postUndo() {
+  const r = await checkOk(await fetch("/api/undo", { method: "POST" }));
+  return r.json();
+}
+
+export async function postRedo() {
+  const r = await checkOk(await fetch("/api/redo", { method: "POST" }));
+  return r.json();
+}
+
 // rev na query só para furar cache do navegador quando a sessão muda
 export function geometryUrl(revision) {
   return `/api/project/geometry?rev=${revision ?? 0}`;
