@@ -7,6 +7,7 @@ from meshbench.core.analyze.units import UNIT_MM
 from meshbench.core.ops import OPS
 from meshbench.core.pipeline import process
 from meshbench.core.project import Project
+from meshbench.core.transform.axes import REMAPS
 
 
 def reprocess(session):
@@ -219,4 +220,83 @@ def update_scale(session, changes):
                 source["units_confirmed"] = snapshot[3]
             else:
                 source.pop("units_confirmed", None)
+            raise
+
+
+def normalize_rotations(rotations):
+    """Valida e normaliza a lista de rotações da receita.
+
+    deg % 360; zeros descartados; consecutivas no mesmo eixo fundidas —
+    a receita fica limpa mesmo com o usuário clicando X+90 quatro vezes.
+    """
+    if not isinstance(rotations, list):
+        raise ValueError("rotations deve ser uma lista de {axis, deg}")
+    out = []
+    for r in rotations:
+        if not isinstance(r, dict) or r.get("axis") not in ("x", "y", "z"):
+            raise ValueError("eixo de rotação inválido (use x, y ou z)")
+        deg = r.get("deg")
+        if isinstance(deg, bool) or not isinstance(deg, (int, float)):
+            raise ValueError("graus de rotação devem ser numéricos")
+        deg = float(deg) % 360.0
+        if deg == 0.0:
+            continue
+        if out and out[-1]["axis"] == r["axis"]:
+            fused = (out[-1]["deg"] + deg) % 360.0
+            if fused == 0.0:
+                out.pop()
+            else:
+                out[-1]["deg"] = fused
+        else:
+            out.append({"axis": r["axis"], "deg": deg})
+    return out
+
+
+def _validated_orient(current, changes):
+    """Monta o dict de orient completo a partir do atual + mudanças. ValueError pt-BR."""
+    axis_remap = changes.get("axis_remap", current.get("axis_remap", "identidade"))
+    custom_remap = changes.get("custom_remap", current.get("custom_remap"))
+    if axis_remap == "custom":
+        base = [str(a).lstrip("+-") for a in (custom_remap or [])]
+        if sorted(base) != ["x", "y", "z"]:
+            raise ValueError(
+                "custom_remap deve ter os 3 eixos (±x, ±y, ±z), cada um uma vez"
+            )
+    elif axis_remap in REMAPS:
+        custom_remap = None
+    else:
+        raise ValueError(
+            f"remap '{axis_remap}' desconhecido (disponíveis: {sorted(REMAPS)} ou custom)"
+        )
+    if "rotations" in changes:
+        rotations = normalize_rotations(changes["rotations"])
+    else:
+        rotations = current.get("rotations", [])
+    mirror = changes.get("mirror", current.get("mirror", []))
+    if (
+        not isinstance(mirror, list)
+        or len(set(mirror)) != len(mirror)
+        or not all(m in ("x", "y", "z") for m in mirror)
+    ):
+        raise ValueError("mirror deve ser um subconjunto de x/y/z sem repetição")
+    return {
+        "axis_remap": axis_remap,
+        "custom_remap": list(custom_remap) if custom_remap else None,
+        "rotations": rotations,
+        "mirror": list(mirror),
+    }
+
+
+def update_orient(session, changes):
+    """Aplica mudança de orientação e reprocessa. Rollback se o reprocesso falhar."""
+    with session.lock:
+        new_orient = _validated_orient(session.project.orient, changes)
+        # referência basta como snapshot: process() não muta orient in place
+        # (ao contrário de scale["factor"]) e nós substituímos o dict inteiro
+        snapshot = session.project.orient
+        session.project.orient = new_orient
+        try:
+            reprocess(session)
+        except Exception:
+            session.project.orient = snapshot
             raise

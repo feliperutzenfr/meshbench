@@ -14,6 +14,7 @@ from meshbench.api.session_ops import (
     preview_op,
     save_recipe,
     update_component,
+    update_orient,
     update_scale,
 )
 from meshbench.core.analyze.components import split_components
@@ -88,6 +89,7 @@ def _project_state(session):
             "name": session.project.name,
             "source": session.project.source,
             "scale": session.project.scale,
+            "orient": session.project.orient,
             "groups": session.project.groups,
             "components": [asdict(c) for c in session.project.components],
             "warnings": session.warnings,
@@ -163,6 +165,14 @@ def create_app(session):
     def patch_scale(changes: dict):
         try:
             update_scale(session, changes)
+        except ValueError as e:
+            return JSONResponse(status_code=422, content={"detail": str(e)})
+        return JSONResponse(_project_state(session))
+
+    @app.patch("/api/orient")
+    def patch_orient(changes: dict):
+        try:
+            update_orient(session, changes)
         except ValueError as e:
             return JSONResponse(status_code=422, content={"detail": str(e)})
         return JSONResponse(_project_state(session))
