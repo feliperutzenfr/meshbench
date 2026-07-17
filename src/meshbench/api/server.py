@@ -10,7 +10,12 @@ from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from meshbench.api.geometry import build_scene_glb, display_records
-from meshbench.api.session_ops import preview_op, save_recipe, update_component
+from meshbench.api.session_ops import (
+    preview_op,
+    save_recipe,
+    update_component,
+    update_scale,
+)
 from meshbench.core.analyze.components import split_components
 from meshbench.core.io.readers import read_mesh
 from meshbench.core.pipeline import FACE_BUDGET, process
@@ -89,6 +94,11 @@ def _project_state(session):
             "group_faces": totals,
             "face_budget": FACE_BUDGET,
             "dims_mm": dims,
+            "source_dims": (
+                [float(x) for x in session.raw_mesh.extents]
+                if session.raw_mesh is not None
+                else None
+            ),
             "revision": session.revision,
         }
 
@@ -148,6 +158,14 @@ def create_app(session):
             media_type="model/gltf-binary",
             headers={"X-Faces-Before": str(before), "X-Faces-After": str(after)},
         )
+
+    @app.patch("/api/scale")
+    def patch_scale(changes: dict):
+        try:
+            update_scale(session, changes)
+        except ValueError as e:
+            return JSONResponse(status_code=422, content={"detail": str(e)})
+        return JSONResponse(_project_state(session))
 
     @app.post("/api/project/save")
     def post_save():

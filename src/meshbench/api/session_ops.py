@@ -3,6 +3,7 @@
 reprocesso usa a malha crua em cache — nunca relê o arquivo fonte."""
 
 from meshbench.api.geometry import build_scene_glb, display_records
+from meshbench.core.analyze.units import UNIT_MM
 from meshbench.core.ops import OPS
 from meshbench.core.pipeline import process
 from meshbench.core.project import Project
@@ -120,3 +121,99 @@ def save_recipe(session):
     with session.lock:
         session.project.save(session.recipe_path)
         return session.recipe_path
+
+
+_SCALE_MODES = ("unit_convert", "uniform", "per_axis", "fit_dimension")
+
+
+def _validated_scale(spec):
+    """Valida e normaliza o spec de escala vindo da UI. Levanta ValueError pt-BR."""
+    if not isinstance(spec, dict):
+        raise ValueError("corpo sem 'scale' — envie {\"scale\": {...}}")
+    mode = spec.get("mode")
+    if mode not in _SCALE_MODES:
+        raise ValueError(
+            f"modo de escala '{mode}' desconhecido (disponíveis: {sorted(_SCALE_MODES)})"
+        )
+    out = {
+        "mode": mode,
+        "from_unit": "mm",
+        "to_unit": "mm",
+        "value": None,
+        "per_axis": None,
+        "fit": None,
+        "factor": [1, 1, 1],
+    }
+    if mode == "unit_convert":
+        from_unit = spec.get("from_unit")
+        to_unit = spec.get("to_unit", "mm")
+        if from_unit not in UNIT_MM or to_unit not in UNIT_MM:
+            raise ValueError(f"unidade inválida (aceitas: {sorted(UNIT_MM)})")
+        out["from_unit"], out["to_unit"] = from_unit, to_unit
+    elif mode == "uniform":
+        value = spec.get("value")
+        if not isinstance(value, (int, float)) or isinstance(value, bool) or value <= 0:
+            raise ValueError("fator uniforme deve ser um número positivo")
+        out["value"] = float(value)
+    elif mode == "per_axis":
+        per_axis = spec.get("per_axis")
+        if (
+            not isinstance(per_axis, list)
+            or len(per_axis) != 3
+            or not all(
+                isinstance(x, (int, float)) and not isinstance(x, bool) and x > 0
+                for x in per_axis
+            )
+        ):
+            raise ValueError("per_axis deve ser uma lista de 3 números positivos")
+        out["per_axis"] = [float(x) for x in per_axis]
+    else:  # fit_dimension
+        fit = spec.get("fit") or {}
+        axis = fit.get("axis")
+        target = fit.get("target_mm")
+        if axis not in ("x", "y", "z"):
+            raise ValueError("fit.axis deve ser x, y ou z")
+        if not isinstance(target, (int, float)) or isinstance(target, bool) or target <= 0:
+            raise ValueError("fit.target_mm deve ser um número positivo")
+        out["fit"] = {"axis": axis, "target_mm": float(target)}
+    return out
+
+
+def update_scale(session, changes):
+    """Aplica mudança de escala e/ou confirmação de unidade e reprocessa.
+
+    Valida TUDO antes de atribuir qualquer coisa; rollback completo se o
+    reprocesso falhar — nada fica meio-editado.
+    """
+    with session.lock:
+        new_scale = None
+        new_units = None
+        if "scale" in changes:
+            new_scale = _validated_scale(changes["scale"])
+        if "units" in changes:
+            new_units = changes["units"]
+            if new_units not in UNIT_MM:
+                raise ValueError(f"unidade '{new_units}' inválida (aceitas: {sorted(UNIT_MM)})")
+
+        source = session.project.source
+        snapshot = (
+            session.project.scale,
+            source.get("units"),
+            "units_confirmed" in source,
+            source.get("units_confirmed"),
+        )
+        if new_scale is not None:
+            session.project.scale = new_scale
+        if new_units is not None:
+            source["units"] = new_units
+            source["units_confirmed"] = True
+        try:
+            reprocess(session)
+        except Exception:
+            session.project.scale = snapshot[0]
+            source["units"] = snapshot[1]
+            if snapshot[2]:
+                source["units_confirmed"] = snapshot[3]
+            else:
+                source.pop("units_confirmed", None)
+            raise
