@@ -31,6 +31,11 @@ class ProjectSession:
     recipe_path: Path | None = None
     revision: int = 0
     lock: threading.RLock = field(default_factory=threading.RLock)
+    # cache do GLB servido por /api/project/geometry: (revision, bytes). O
+    # viewport agora mantém a cena entre trocas de geometria e pode reconsultar
+    # a mesma revision (ex.: reconexão) sem pagar o custo de reconstruir o GLB;
+    # a invalidação é automática porque toda mutação incrementa revision.
+    glb_cache: tuple | None = None
 
 
 def load_session(path):
@@ -108,7 +113,11 @@ def create_app(session):
                     status_code=404,
                     content={"detail": "nenhuma peça no resultado — tudo removido ou sem grupo"},
                 )
-            glb = build_scene_glb(display_records(session.records))
+            if session.glb_cache is not None and session.glb_cache[0] == session.revision:
+                glb = session.glb_cache[1]
+            else:
+                glb = build_scene_glb(display_records(session.records))
+                session.glb_cache = (session.revision, glb)
         return Response(content=glb, media_type="model/gltf-binary")
 
     @app.patch("/api/component/{comp_id}")

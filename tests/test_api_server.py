@@ -60,6 +60,18 @@ def test_get_geometry_glb(tmp_path, box, small_sphere):
     assert r.content[:4] == b"glTF"
 
 
+def test_get_geometry_glb_cache(tmp_path, box, small_sphere):
+    session = load_session(_stl(tmp_path, box, small_sphere))
+    client = TestClient(create_app(session))
+
+    r1 = client.get("/api/project/geometry")
+    r2 = client.get("/api/project/geometry")
+    assert r1.status_code == 200 and r2.status_code == 200
+    assert r1.content == r2.content  # segunda GET reusa o cache, não reconstrói
+    assert session.glb_cache is not None
+    assert session.glb_cache[0] == session.revision
+
+
 def test_get_geometry_sem_pecas_404(tmp_path, box):
     p = tmp_path / "cena.stl"
     box.export(str(p))

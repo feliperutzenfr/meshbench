@@ -98,6 +98,28 @@ def test_preview_remove_404(tmp_path, small_sphere):
     assert "não produziu" in r.json()["detail"]
 
 
+def test_get_geometry_cache_invalida_apos_patch(tmp_path, small_sphere):
+    client, session = _client(tmp_path, small_sphere)
+    comp = session.project.components[0].id
+    client.patch(
+        f"/api/component/{comp}",
+        json={"operation": {"type": "keep", "params": {}}, "group": "saida"},
+    )
+    r1 = client.get("/api/project/geometry")
+    assert r1.status_code == 200
+    assert session.glb_cache[0] == session.revision
+    glb_antes = r1.content
+
+    client.patch(
+        f"/api/component/{comp}",
+        json={"operation": {"type": "decimate", "params": {"face_count": 80}}},
+    )
+    r2 = client.get("/api/project/geometry")
+    assert r2.status_code == 200
+    assert r2.content != glb_antes  # cache velho não vazou pro GLB novo
+    assert session.glb_cache[0] == session.revision  # cache acompanha a revision nova
+
+
 def test_save_grava_receita(tmp_path, small_sphere):
     client, session = _client(tmp_path, small_sphere)
     r = client.post("/api/project/save")
