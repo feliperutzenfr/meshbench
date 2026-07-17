@@ -80,3 +80,5 @@ body { font-family: system-ui, sans-serif; background: #16161a; color: #e8e8ec; 
 .grupo-espelho { font-size: 0.78rem; color: #9a9aa5; }
 .grupo-undo { margin-left: auto; }
 .grupo-undo .btn { font-size: 1rem; padding: 3px 10px; }
+.orientbar .msg { font-size: 0.78rem; color: #9a9aa5; }
+.orientbar .msg.erro { color: #e15759; }

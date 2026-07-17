@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { patchOrient, postRedo, postUndo } from "../lib/client.js";
 import {
   REMAP_LABELS,
@@ -17,13 +17,21 @@ export default function OrientBar({ state, onStateChange }) {
   const [free, setFree] = useState({ rx: "", ry: "", rz: "" });
   const [custom, setCustom] = useState(orient.custom_remap || ["x", "y", "z"]);
 
+  // resincroniza os selects após cada mudança de estado (PATCH aplicado, undo/redo)
+  useEffect(() => {
+    setCustom(orient.custom_remap || ["x", "y", "z"]);
+  }, [orient]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const send = async (changes) => {
     setBusy(true);
     setMsg(null);
     try {
       onStateChange(await patchOrient(changes));
+      setMsg("aplicado ✓");
     } catch (e) {
       setMsg(`erro: ${e.message}`);
+      // PATCH rejeitado não muda o estado — restaura os selects para o que está de fato aplicado
+      setCustom(state.orient.custom_remap || ["x", "y", "z"]);
     }
     setBusy(false);
   };
@@ -160,7 +168,7 @@ export default function OrientBar({ state, onStateChange }) {
           ↷
         </button>
       </span>
-      {msg && <span className="msg erro">{msg}</span>}
+      {msg && <span className={"msg" + (msg.startsWith("erro") ? " erro" : "")}>{msg}</span>}
     </div>
   );
 }
