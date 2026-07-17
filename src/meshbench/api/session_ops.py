@@ -129,7 +129,7 @@ _SCALE_MODES = ("unit_convert", "uniform", "per_axis", "fit_dimension")
 def _validated_scale(spec):
     """Valida e normaliza o spec de escala vindo da UI. Levanta ValueError pt-BR."""
     if not isinstance(spec, dict):
-        raise ValueError("corpo sem 'scale' — envie {\"scale\": {...}}")
+        raise ValueError("'scale' inválido — envie {\"scale\": {...}}")
     mode = spec.get("mode")
     if mode not in _SCALE_MODES:
         raise ValueError(
@@ -196,8 +196,11 @@ def update_scale(session, changes):
                 raise ValueError(f"unidade '{new_units}' inválida (aceitas: {sorted(UNIT_MM)})")
 
         source = session.project.source
+        # CÓPIA do scale, não a referência: process() muta scale["factor"] in
+        # place antes de estágios que podem falhar — a referência viva
+        # "restauraria" o próprio dict já mutado
         snapshot = (
-            session.project.scale,
+            dict(session.project.scale),
             source.get("units"),
             "units_confirmed" in source,
             source.get("units_confirmed"),

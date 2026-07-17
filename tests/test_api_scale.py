@@ -100,3 +100,21 @@ def test_rollback_se_reprocesso_falha(tmp_path, box, monkeypatch):
     assert session.project.source.get("units") == units_antes
     assert "units_confirmed" not in session.project.source
     assert session.revision == rev_antes
+
+
+def test_rollback_units_only_restaura_scale_mutado(tmp_path, box, monkeypatch):
+    """Só 'units' no changes: process() muta project.scale IN PLACE antes de
+    falhar — o rollback precisa restaurar uma CÓPIA, não a referência viva."""
+    _, session = _client(tmp_path, box)
+    session.project.scale["factor"] = [9, 9, 9]  # fator "velho" simulado
+
+    import meshbench.api.session_ops as so
+
+    def muta_e_explode(*a, **k):
+        a[0].scale["factor"] = [1, 1, 1]  # process() muta in place, depois falha
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(so, "process", muta_e_explode)
+    with pytest.raises(RuntimeError):
+        update_scale(session, {"units": "in"})
+    assert session.project.scale["factor"] == [9, 9, 9]
