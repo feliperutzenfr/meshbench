@@ -28,6 +28,17 @@ export async function patchComponent(id, changes) {
   return r.json();
 }
 
+export async function patchScale(changes) {
+  const r = await checkOk(
+    await fetch("/api/scale", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(changes),
+    }),
+  );
+  return r.json();
+}
+
 export async function previewComponent(id, operation) {
   const r = await checkOk(
     await fetch(`/api/preview/${id}`, {
