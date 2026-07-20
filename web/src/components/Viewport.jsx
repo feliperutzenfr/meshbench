@@ -57,6 +57,7 @@ export default function Viewport({
   onGizmoRotateRef.current = onGizmoRotate;
   const gizmoOnRef = useRef(gizmoOn);
   const tcRef = useRef(null); // TransformControls persistente (montagem única)
+  const gizmoHitRef = useRef(false); // a interação atual começou no gizmo?
   const semSaida = Object.keys(state.group_faces || {}).length === 0;
 
   // Efeito de montagem única: renderer/câmera/controles/luzes/raycast/loop
@@ -121,11 +122,18 @@ export default function Viewport({
       if (e.button !== 0) return; // só botão esquerdo seleciona (direito/meio = órbita)
       down.x = e.clientX;
       down.y = e.clientY;
+      // o TransformControls já processou este pointerdown (listener registrado
+      // antes do nosso) e definiu tc.axis se o cursor estava sobre o gizmo;
+      // no pointerup ele já zerou o eixo, por isso capturamos aqui
+      gizmoHitRef.current = !!tcRef.current?.axis;
     };
     const onPointerUp = (e) => {
       if (e.button !== 0) return;
       if (Math.hypot(e.clientX - down.x, e.clientY - down.y) > 5) return;
-      if (tcRef.current?.axis) return; // clique/arrasto no gizmo não seleciona nem snapa
+      if (gizmoHitRef.current) {
+        gizmoHitRef.current = false;
+        return; // clique/arrasto no gizmo não seleciona nem snapa
+      }
       const rect = renderer.domElement.getBoundingClientRect();
       const ndc = new THREE.Vector2(
         ((e.clientX - rect.left) / rect.width) * 2 - 1,
