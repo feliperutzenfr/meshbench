@@ -3,6 +3,7 @@
 reprocesso usa a malha crua em cache — nunca relê o arquivo fonte."""
 
 import math
+import re
 
 from meshbench.api.geometry import build_scene_glb, display_records
 from meshbench.core.analyze.units import UNIT_MM
@@ -365,5 +366,78 @@ def update_orient(session, changes):
             reprocess(session)
         except Exception:
             session.project.orient = snapshot
+            raise
+        _push_undo(session, before)
+
+
+_ORIGIN_MODES = ("common", "per_group")
+_CORNER_RE = re.compile(r"^corner_[01]{3}$")
+
+
+def _finite_triple(value, nome):
+    """Valida uma lista de 3 números finitos. ValueError pt-BR."""
+    if (
+        not isinstance(value, (list, tuple))
+        or len(value) != 3
+        or not all(
+            isinstance(x, (int, float))
+            and not isinstance(x, bool)
+            and math.isfinite(x)
+            for x in value
+        )
+    ):
+        raise ValueError(f"{nome} deve ser uma lista de 3 números")
+    return [float(x) for x in value]
+
+
+def _validated_origin(current, changes):
+    """Monta o dict de origin completo a partir do atual + mudanças. ValueError pt-BR."""
+    mode = changes.get("mode", current.get("mode", "common"))
+    if mode not in _ORIGIN_MODES:
+        raise ValueError(
+            f"modo de origem '{mode}' desconhecido (disponíveis: {sorted(_ORIGIN_MODES)})"
+        )
+    anchor = changes.get("anchor", current.get("anchor", "bbox_min"))
+    if anchor not in ("bbox_min", "center") and not _CORNER_RE.match(str(anchor)):
+        raise ValueError(
+            "âncora deve ser bbox_min, center ou corner_ABC (A,B,C em 0/1)"
+        )
+    offset = _finite_triple(
+        changes.get("offset", current.get("offset", [0, 0, 0])), "offset"
+    )
+    if "snap_point" in changes:
+        snap_point = changes["snap_point"]
+    else:
+        snap_point = current.get("snap_point")
+    if snap_point is not None:
+        snap_point = _finite_triple(snap_point, "snap_point")
+    if "feature_ref" in changes:
+        feature_ref = changes["feature_ref"]
+    else:
+        feature_ref = current.get("feature_ref")
+    if feature_ref is not None and not isinstance(feature_ref, str):
+        raise ValueError("feature_ref deve ser o id de um componente (string) ou null")
+    return {
+        "mode": mode,
+        "anchor": anchor,
+        "feature_ref": feature_ref,
+        "snap_point": snap_point,
+        "offset": offset,
+    }
+
+
+def update_origin(session, changes):
+    """Aplica mudança de origem e reprocessa. Rollback se o reprocesso falhar."""
+    with session.lock:
+        before = session.project.to_dict()
+        new_origin = _validated_origin(session.project.origin, changes)
+        # referência basta como snapshot: process() não muta origin in place
+        # (ao contrário de scale["factor"]) e nós substituímos o dict inteiro
+        snapshot = session.project.origin
+        session.project.origin = new_origin
+        try:
+            reprocess(session)
+        except Exception:
+            session.project.origin = snapshot
             raise
         _push_undo(session, before)

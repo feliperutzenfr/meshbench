@@ -17,8 +17,10 @@ from meshbench.api.session_ops import (
     undo,
     update_component,
     update_orient,
+    update_origin,
     update_scale,
 )
+from meshbench.core.transform.origin import origin_distance
 from meshbench.core.analyze.components import split_components
 from meshbench.core.io.readers import read_mesh
 from meshbench.core.pipeline import FACE_BUDGET, process
@@ -94,12 +96,18 @@ def _project_state(session):
             "source": session.project.source,
             "scale": session.project.scale,
             "orient": session.project.orient,
+            "origin": session.project.origin,
             "groups": session.project.groups,
             "components": [asdict(c) for c in session.project.components],
             "warnings": session.warnings,
             "group_faces": totals,
             "face_budget": FACE_BUDGET,
             "dims_mm": dims,
+            "origin_distance_mm": (
+                origin_distance([r.mesh for r in session.records])
+                if session.records
+                else None
+            ),
             "source_dims": (
                 [float(x) for x in session.raw_mesh.extents]
                 if session.raw_mesh is not None
@@ -179,6 +187,14 @@ def create_app(session):
     def patch_orient(changes: dict):
         try:
             update_orient(session, changes)
+        except ValueError as e:
+            return JSONResponse(status_code=422, content={"detail": str(e)})
+        return JSONResponse(_project_state(session))
+
+    @app.patch("/api/origin")
+    def patch_origin(changes: dict):
+        try:
+            update_origin(session, changes)
         except ValueError as e:
             return JSONResponse(status_code=422, content={"detail": str(e)})
         return JSONResponse(_project_state(session))

@@ -76,3 +76,23 @@ def test_mutacao_falha_nao_empilha(tmp_path, box):
     r = client.patch("/api/orient", json={"mirror": ["w"]})
     assert r.status_code == 422
     assert len(session.undo_stack) == n
+
+
+def test_undo_devolve_alvo_a_pilha_se_restore_falha(tmp_path, box, monkeypatch):
+    """Se o reprocesso do undo falhar, o alvo volta para a pilha e a sessão
+    fica intacta (projeto atual preservado, redo não ganha entrada)."""
+    client, session = _client(tmp_path, box)
+    client.patch("/api/orient", json={"rotations": [{"axis": "x", "deg": 90}]})
+    n_undo = len(session.undo_stack)
+
+    import meshbench.api.session_ops as so
+
+    def explode(*a, **k):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(so, "process", explode)
+    with pytest.raises(RuntimeError):
+        so.undo(session)
+    assert len(session.undo_stack) == n_undo
+    assert len(session.redo_stack) == 0
+    assert session.project.orient["rotations"] == [{"axis": "x", "deg": 90.0}]
