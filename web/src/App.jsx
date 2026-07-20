@@ -5,6 +5,7 @@ import Viewport from "./components/Viewport.jsx";
 import Inspector from "./components/Inspector.jsx";
 import ScaleBar from "./components/ScaleBar.jsx";
 import OrientBar from "./components/OrientBar.jsx";
+import OriginBar from "./components/OriginBar.jsx";
 import { fetchProject } from "./lib/client.js";
 
 export default function App() {
@@ -12,6 +13,10 @@ export default function App() {
   const [error, setError] = useState(null);
   const [selected, setSelected] = useState(null); // id da família selecionada
   const [preview, setPreview] = useState(null); // {componentId, url, facesBefore, facesAfter, mostrando}
+  const [snapOrigin, setSnapOrigin] = useState(false); // snap de origem armado?
+  const [picked, setPicked] = useState(null); // {point: [x,y,z]} clicado no viewport
+  const [gizmoOn, setGizmoOn] = useState(false); // gizmo de rotação visível?
+  const [gizmoRots, setGizmoRots] = useState(null); // {rots: [{axis, deg}]} do arrasto
 
   useEffect(() => {
     fetchProject().then(setState).catch((e) => setError(String(e)));
@@ -50,13 +55,25 @@ export default function App() {
     [clearPreview],
   );
 
+  const handlePickPoint = useCallback((p) => setPicked({ point: p }), []);
+  const handleGizmoRotate = useCallback((rots) => setGizmoRots({ rots }), []);
+
   if (error) return <div className="tela-aviso">Erro ao carregar o projeto: {error}</div>;
   if (!state) return <div className="tela-aviso">Carregando…</div>;
   return (
     <div className="app">
       <Sidebar state={state} selected={selected} onSelect={handleSelect} />
       <main className="viewport-wrap">
-        <Viewport state={state} selected={selected} onSelect={handleSelect} preview={preview} />
+        <Viewport
+          state={state}
+          selected={selected}
+          onSelect={handleSelect}
+          preview={preview}
+          pickMode={snapOrigin}
+          onPickPoint={handlePickPoint}
+          gizmoOn={gizmoOn}
+          onGizmoRotate={handleGizmoRotate}
+        />
       </main>
       <Inspector
         state={state}
@@ -67,7 +84,22 @@ export default function App() {
         onClearPreview={clearPreview}
       />
       <ScaleBar state={state} onStateChange={handleStateChange} />
-      <OrientBar state={state} onStateChange={handleStateChange} />
+      <OrientBar
+        state={state}
+        onStateChange={handleStateChange}
+        gizmoOn={gizmoOn}
+        onToggleGizmo={setGizmoOn}
+        gizmoRots={gizmoRots}
+        onGizmoConsumed={() => setGizmoRots(null)}
+      />
+      <OriginBar
+        state={state}
+        onStateChange={handleStateChange}
+        snapArmed={snapOrigin}
+        onToggleSnap={setSnapOrigin}
+        picked={picked}
+        onPickConsumed={() => setPicked(null)}
+      />
       <StatusBar state={state} />
     </div>
   );
