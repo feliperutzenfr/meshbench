@@ -31,6 +31,12 @@ export function buildFreeRotation(orient, rx, ry, rz) {
   return out;
 }
 
+// Arrasto do gizmo com TODOS os eixos abaixo deste limiar é ruído de mouse
+// (ex.: 1px de tremor num anel) — não deve virar uma mutação na receita nem
+// disparar um reprocesso. Um arrasto deliberado que passe do limiar em pelo
+// menos um eixo mantém seus eixos secundários pequenos (rotação composta).
+const MIN_GIZMO_DEG = 0.5;
+
 // Gizmo → receita: a nossa lista [x, y, z] aplicada em sequência (cada rotação
 // em torno do eixo do MUNDO, a última multiplica à esquerda) equivale ao Euler
 // 'ZYX' do three.js — decompor com 'XYZ' daria o resultado ERRADO. Radianos →
@@ -41,5 +47,6 @@ export function eulerToRotations(ex, ey, ez) {
     const deg = Math.round(((rad * 180) / Math.PI) * 10) / 10;
     if (deg !== 0) rots.push({ axis, deg });
   }
+  if (!rots.some((r) => Math.abs(r.deg) >= MIN_GIZMO_DEG)) return [];
   return rots;
 }

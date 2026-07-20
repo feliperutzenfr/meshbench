@@ -17,6 +17,7 @@ export default function OrientBar({
   onToggleGizmo,
   gizmoRots,
   onGizmoConsumed,
+  onBusyChange,
 }) {
   const orient = state.orient;
   const [busy, setBusy] = useState(false);
@@ -28,6 +29,13 @@ export default function OrientBar({
   useEffect(() => {
     setCustom(orient.custom_remap || ["x", "y", "z"]);
   }, [orient]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // propaga o busy para o App (que repassa ao Viewport) — o gizmo precisa
+  // ficar desabilitado durante um reprocesso em voo, senão um arrasto
+  // iniciado antes da resposta chegar é descartado em silêncio (ver Viewport)
+  useEffect(() => {
+    onBusyChange?.(busy);
+  }, [busy, onBusyChange]);
 
   const send = async (changes) => {
     setBusy(true);

@@ -17,6 +17,7 @@ export default function App() {
   const [picked, setPicked] = useState(null); // {point: [x,y,z]} clicado no viewport
   const [gizmoOn, setGizmoOn] = useState(false); // gizmo de rotação visível?
   const [gizmoRots, setGizmoRots] = useState(null); // {rots: [{axis, deg}]} do arrasto
+  const [orientBusy, setOrientBusy] = useState(false); // PATCH /api/orient em voo?
 
   useEffect(() => {
     fetchProject().then(setState).catch((e) => setError(String(e)));
@@ -73,6 +74,7 @@ export default function App() {
           onPickPoint={handlePickPoint}
           gizmoOn={gizmoOn}
           onGizmoRotate={handleGizmoRotate}
+          busy={orientBusy}
         />
       </main>
       <Inspector
@@ -91,6 +93,7 @@ export default function App() {
         onToggleGizmo={setGizmoOn}
         gizmoRots={gizmoRots}
         onGizmoConsumed={() => setGizmoRots(null)}
+        onBusyChange={setOrientBusy}
       />
       <OriginBar
         state={state}

@@ -34,6 +34,7 @@ export default function Viewport({
   onPickPoint,
   gizmoOn,
   onGizmoRotate,
+  busy,
 }) {
   const mountRef = useRef(null);
   const [erro, setErro] = useState(null);
@@ -56,6 +57,7 @@ export default function Viewport({
   const onGizmoRotateRef = useRef(onGizmoRotate);
   onGizmoRotateRef.current = onGizmoRotate;
   const gizmoOnRef = useRef(gizmoOn);
+  gizmoOnRef.current = gizmoOn;
   const tcRef = useRef(null); // TransformControls persistente (montagem única)
   const gizmoHitRef = useRef(false); // a interação atual começou no gizmo?
   const semSaida = Object.keys(state.group_faces || {}).length === 0;
@@ -334,7 +336,6 @@ export default function Viewport({
 
   // liga/desliga o gizmo — reanexa ao GLB vigente (que muda a cada revision)
   useEffect(() => {
-    gizmoOnRef.current = gizmoOn;
     const tc = tcRef.current;
     const content = contentGroupRef.current;
     if (!tc) return;
@@ -345,6 +346,12 @@ export default function Viewport({
     const root = content?.children.find((c) => c.userData.isGlbRoot);
     if (root) tc.attach(root);
   }, [gizmoOn, state]);
+
+  // gizmo desabilitado durante um reprocesso em voo: sem isto um arrasto
+  // iniciado antes da resposta chegar seria descartado em silêncio
+  useEffect(() => {
+    if (tcRef.current) tcRef.current.enabled = !busy;
+  }, [busy]);
 
   // overlay de preview: "depois" esconde as originais da família e mostra o
   // GLB pré-visualizado; "antes" (ou sem preview) restaura as originais

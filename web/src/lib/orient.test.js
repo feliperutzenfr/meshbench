@@ -50,4 +50,24 @@ describe("eulerToRotations", () => {
   it("descarta ângulos que arredondam para 0,0°", () => {
     expect(eulerToRotations(0.0001, 0, 0)).toEqual([]);
   });
+
+  const rad = (deg) => (deg * Math.PI) / 180;
+
+  it("descarta o arrasto quando TODOS os eixos ficam abaixo do limiar mínimo (0,5°)", () => {
+    expect(eulerToRotations(rad(0.1), rad(0.2), rad(0.3))).toEqual([]);
+  });
+
+  it("mantém o eixo dominante e um eixo secundário pequeno quando um eixo ultrapassa o limiar", () => {
+    expect(eulerToRotations(rad(45), rad(0.3), 0)).toEqual([
+      { axis: "x", deg: 45 },
+      { axis: "y", deg: 0.3 },
+    ]);
+  });
+
+  it("mantém o comportamento existente para ângulos grandes (limiar não interfere)", () => {
+    expect(eulerToRotations(Math.PI / 2, 0, -Math.PI)).toEqual([
+      { axis: "x", deg: 90 },
+      { axis: "z", deg: -180 },
+    ]);
+  });
 });
