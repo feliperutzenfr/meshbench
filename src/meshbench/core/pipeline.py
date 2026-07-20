@@ -16,7 +16,12 @@ from meshbench.core.io.writers import write_meshes
 from meshbench.core.ops import apply_op
 from meshbench.core.transform.axes import remap_axes
 from meshbench.core.transform.mirror import mirror
-from meshbench.core.transform.origin import _bounds_of, place_origin
+from meshbench.core.transform.origin import (
+    ORIGIN_FLOAT_MM,
+    _bounds_of,
+    origin_distance,
+    place_origin,
+)
 from meshbench.core.transform.rotate import rotate_90, rotate_free
 from meshbench.core.transform.scale import apply_scale
 
@@ -223,6 +228,11 @@ def process(project, base_dir, mesh=None):
         # re-associar as malhas transladadas aos registros, na mesma ordem por grupo
         cursors = {g: iter(ms) for g, ms in grouped.items()}
         records = [replace(r, mesh=next(cursors[r.group])) for r in records]
+        dist = origin_distance([r.mesh for r in records])
+        if dist is not None and dist > ORIGIN_FLOAT_MM:
+            warnings.append(
+                f"origem a {dist:.0f} mm da geometria mais próxima — origem flutuando"
+            )
 
     return records, warnings
 

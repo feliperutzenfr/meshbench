@@ -71,3 +71,21 @@ def place_origin(
             for g, ms in groups.items()
         }
     raise ValueError(f"modo de origem '{mode}' desconhecido")
+
+
+ORIGIN_FLOAT_MM = 50.0  # §8.3: acima disto, avisar "origem flutuando"
+
+
+def origin_distance(meshes):
+    """Distância da origem (0,0,0) ao vértice mais próximo — validador §8.3.
+
+    Aproximação por vértice (não por superfície): suficiente para detectar a
+    reclamação real ("a peça flutua longe do quadradinho vermelho no Promob").
+    Retorna None se não houver malha.
+    """
+    dists = [
+        float(np.linalg.norm(np.asarray(m.vertices, float), axis=1).min())
+        for m in meshes
+        if len(m.vertices)
+    ]
+    return min(dists) if dists else None

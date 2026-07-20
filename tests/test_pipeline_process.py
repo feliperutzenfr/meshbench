@@ -77,3 +77,21 @@ def test_process_com_malha_pre_carregada(tmp_path, box):
     # a malha fornecida não foi mutada
     import numpy as np
     assert np.allclose(box.extents, [10, 20, 30])
+
+
+def test_warning_origem_flutuando(tmp_path, box):
+    """Offset grande deixa a geometria longe da origem → aviso do validador §8.3."""
+    from meshbench.api.server import load_session
+    from meshbench.core.pipeline import process
+
+    p = tmp_path / "caixa.stl"
+    box.export(str(p))
+    session = load_session(p)
+
+    session.project.origin["offset"] = [100.0, 0.0, 0.0]
+    _, warnings = process(session.project, session.base_dir, mesh=session.raw_mesh)
+    assert any("origem flutuando" in w for w in warnings)
+
+    session.project.origin["offset"] = [0.0, 0.0, 0.0]
+    _, warnings = process(session.project, session.base_dir, mesh=session.raw_mesh)
+    assert not any("origem flutuando" in w for w in warnings)

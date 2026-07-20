@@ -64,3 +64,21 @@ def test_offset(box):
         _dois_grupos(box), mode="common", anchor="bbox_min", offset=[10, 0, 0]
     )
     assert np.allclose(out["fixa"][0].bounds[0], [-10, 0, 0])
+
+
+def test_origin_distance_vertice_mais_proximo(box):
+    from meshbench.core.transform.origin import origin_distance
+
+    m = box.copy()  # caixa centrada na origem: x∈[-5,5], y∈[-10,10], z∈[-15,15]
+    m.apply_translation([100.0, 0.0, 0.0])  # x∈[95,105]
+    d = origin_distance([m])
+    assert d == pytest.approx(float(np.linalg.norm([95.0, 10.0, 15.0])))
+
+
+def test_origin_distance_zero_e_vazio(box):
+    from meshbench.core.transform.origin import origin_distance
+
+    m = box.copy()
+    m.apply_translation([5.0, 10.0, 15.0])  # canto mínimo exatamente na origem
+    assert origin_distance([m]) == pytest.approx(0.0)
+    assert origin_distance([]) is None
