@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { REMAP_LABELS, addRotation, buildFreeRotation, toggleMirror } from "./orient.js";
+import { REMAP_LABELS, addRotation, buildFreeRotation, toggleMirror, eulerToRotations } from "./orient.js";
 
 const base = { axis_remap: "identidade", custom_remap: null, rotations: [], mirror: [] };
 
@@ -36,5 +36,18 @@ describe("orient helpers", () => {
       { axis: "y", deg: 20 },
       { axis: "z", deg: 30 },
     ]);
+  });
+});
+
+describe("eulerToRotations", () => {
+  it("converte radianos para a lista x→y→z em graus", () => {
+    expect(eulerToRotations(Math.PI / 2, 0, -Math.PI)).toEqual([
+      { axis: "x", deg: 90 },
+      { axis: "z", deg: -180 },
+    ]);
+  });
+
+  it("descarta ângulos que arredondam para 0,0°", () => {
+    expect(eulerToRotations(0.0001, 0, 0)).toEqual([]);
   });
 });

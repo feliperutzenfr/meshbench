@@ -30,3 +30,16 @@ export function buildFreeRotation(orient, rx, ry, rz) {
   }
   return out;
 }
+
+// Gizmo → receita: a nossa lista [x, y, z] aplicada em sequência (cada rotação
+// em torno do eixo do MUNDO, a última multiplica à esquerda) equivale ao Euler
+// 'ZYX' do three.js — decompor com 'XYZ' daria o resultado ERRADO. Radianos →
+// graus arredondados a 0,1°; zeros descartados (o servidor normaliza o resto).
+export function eulerToRotations(ex, ey, ez) {
+  const rots = [];
+  for (const [axis, rad] of [["x", ex], ["y", ey], ["z", ez]]) {
+    const deg = Math.round(((rad * 180) / Math.PI) * 10) / 10;
+    if (deg !== 0) rots.push({ axis, deg });
+  }
+  return rots;
+}

@@ -81,6 +81,17 @@ export async function postRedo() {
   return r.json();
 }
 
+export async function patchOrigin(changes) {
+  const r = await checkOk(
+    await fetch("/api/origin", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(changes),
+    }),
+  );
+  return r.json();
+}
+
 // rev na query só para furar cache do navegador quando a sessão muda
 export function geometryUrl(revision) {
   return `/api/project/geometry?rev=${revision ?? 0}`;
