@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { TransformControls } from "three/addons/controls/TransformControls.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { geometryUrl } from "../lib/client.js";
 import { groupColor } from "../lib/palette.js";
+import { eulerToRotations } from "../lib/orient.js";
 
 const SELECT_EMISSIVE = 0x2a4a6a;
 
@@ -23,7 +25,16 @@ function compIdOf(obj) {
   return (obj.userData.name || obj.name).split(".")[0];
 }
 
-export default function Viewport({ state, selected, onSelect, preview }) {
+export default function Viewport({
+  state,
+  selected,
+  onSelect,
+  preview,
+  pickMode,
+  onPickPoint,
+  gizmoOn,
+  onGizmoRotate,
+}) {
   const mountRef = useRef(null);
   const [erro, setErro] = useState(null);
   const [aviso, setAviso] = useState(null);
@@ -38,6 +49,14 @@ export default function Viewport({ state, selected, onSelect, preview }) {
   const selectedRef = useRef(selected);
   const onSelectRef = useRef(onSelect);
   onSelectRef.current = onSelect;
+  const pickModeRef = useRef(pickMode);
+  pickModeRef.current = pickMode;
+  const onPickPointRef = useRef(onPickPoint);
+  onPickPointRef.current = onPickPoint;
+  const onGizmoRotateRef = useRef(onGizmoRotate);
+  onGizmoRotateRef.current = onGizmoRotate;
+  const gizmoOnRef = useRef(gizmoOn);
+  const tcRef = useRef(null); // TransformControls persistente (montagem única)
   const semSaida = Object.keys(state.group_faces || {}).length === 0;
 
   // Efeito de montagem única: renderer/câmera/controles/luzes/raycast/loop
@@ -67,6 +86,25 @@ export default function Viewport({ state, selected, onSelect, preview }) {
     const controls = new OrbitControls(camera, renderer.domElement);
     controlsRef.current = controls;
 
+    // gizmo de rotação (fase 5b): persistente como a câmera; anexado ao GLB a
+    // cada troca de geometria quando ligado. three >= 0.169: adicionar o
+    // HELPER à cena (TransformControls não é mais Object3D).
+    const tc = new TransformControls(camera, renderer.domElement);
+    tc.setMode("rotate");
+    tc.setSpace("world");
+    tc.addEventListener("dragging-changed", (e) => {
+      controls.enabled = !e.value; // órbita não pode disputar o arrasto
+      if (!e.value && tc.object) {
+        // soltou: decompõe o acumulado em Euler 'ZYX' — equivale à nossa lista
+        // [x, y, z] aplicada em sequência (decompor em 'XYZ' seria ERRADO)
+        const euler = new THREE.Euler().setFromQuaternion(tc.object.quaternion, "ZYX");
+        tc.object.rotation.set(0, 0, 0); // o servidor reprocessa e devolve o GLB girado
+        onGizmoRotateRef.current(eulerToRotations(euler.x, euler.y, euler.z));
+      }
+    });
+    scene.add(tc.getHelper());
+    tcRef.current = tc;
+
     scene.add(new THREE.HemisphereLight(0xffffff, 0x444455, 1.1));
     const dir = new THREE.DirectionalLight(0xffffff, 1.6);
     dir.position.set(1, -2, 3);
@@ -87,6 +125,7 @@ export default function Viewport({ state, selected, onSelect, preview }) {
     const onPointerUp = (e) => {
       if (e.button !== 0) return;
       if (Math.hypot(e.clientX - down.x, e.clientY - down.y) > 5) return;
+      if (tcRef.current?.axis) return; // clique/arrasto no gizmo não seleciona nem snapa
       const rect = renderer.domElement.getBoundingClientRect();
       const ndc = new THREE.Vector2(
         ((e.clientX - rect.left) / rect.width) * 2 - 1,
@@ -95,6 +134,11 @@ export default function Viewport({ state, selected, onSelect, preview }) {
       raycaster.setFromCamera(ndc, camera);
       const meshes = [...meshesByCompRef.current.values()].flat().filter((m) => m.visible);
       const hits = raycaster.intersectObjects(meshes, false);
+      if (pickModeRef.current) {
+        // snap de origem armado: entrega o ponto do mundo, não muda a seleção
+        if (hits.length > 0) onPickPointRef.current(hits[0].point.toArray());
+        return;
+      }
       onSelectRef.current(hits.length > 0 ? compIdOf(hits[0].object) : null);
     };
     renderer.domElement.addEventListener("pointerdown", onPointerDown);
@@ -121,6 +165,9 @@ export default function Viewport({ state, selected, onSelect, preview }) {
       ro.disconnect();
       renderer.domElement.removeEventListener("pointerdown", onPointerDown);
       renderer.domElement.removeEventListener("pointerup", onPointerUp);
+      tc.detach();
+      tc.dispose();
+      tcRef.current = null;
       controls.dispose();
       previewGroupRef.current = null;
       contentGroupRef.current = null;
@@ -148,6 +195,10 @@ export default function Viewport({ state, selected, onSelect, preview }) {
     // buscando o GLB quando o usuário já disparou N+1) — um boolean
     // "cancelled" simples não distingue as duas, um contador distingue.
     const myGen = ++loadGenRef.current;
+
+    // desanexa o gizmo do GLB antigo antes de descartá-lo — senão o gizmo
+    // fica com uma referência a um objeto já disposed
+    tcRef.current?.detach();
 
     // remove e descarta o grupo de conteúdo anterior (tudo que ele contém:
     // GLB antigo, grid, marcador, eixos) antes de montar o novo, vazio
@@ -206,6 +257,8 @@ export default function Viewport({ state, selected, onSelect, preview }) {
           }
         });
         group.add(gltf.scene);
+        gltf.scene.userData.isGlbRoot = true;
+        if (gizmoOnRef.current) tcRef.current?.attach(gltf.scene);
 
         const box = new THREE.Box3().setFromObject(gltf.scene);
         const size = box.getSize(new THREE.Vector3());
@@ -270,6 +323,20 @@ export default function Viewport({ state, selected, onSelect, preview }) {
       }
     }
   }, [selected, state]);
+
+  // liga/desliga o gizmo — reanexa ao GLB vigente (que muda a cada revision)
+  useEffect(() => {
+    gizmoOnRef.current = gizmoOn;
+    const tc = tcRef.current;
+    const content = contentGroupRef.current;
+    if (!tc) return;
+    if (!gizmoOn) {
+      tc.detach();
+      return;
+    }
+    const root = content?.children.find((c) => c.userData.isGlbRoot);
+    if (root) tc.attach(root);
+  }, [gizmoOn, state]);
 
   // overlay de preview: "depois" esconde as originais da família e mostra o
   // GLB pré-visualizado; "antes" (ou sem preview) restaura as originais

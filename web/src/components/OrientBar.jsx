@@ -10,7 +10,14 @@ import {
 const AXES = ["x", "y", "z"];
 const CUSTOM_OPTIONS = ["x", "-x", "y", "-y", "z", "-z"];
 
-export default function OrientBar({ state, onStateChange }) {
+export default function OrientBar({
+  state,
+  onStateChange,
+  gizmoOn,
+  onToggleGizmo,
+  gizmoRots,
+  onGizmoConsumed,
+}) {
   const orient = state.orient;
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState(null);
@@ -35,6 +42,16 @@ export default function OrientBar({ state, onStateChange }) {
     }
     setBusy(false);
   };
+
+  // consumo da rotação do gizmo: o Viewport decompôs o arrasto em [{axis, deg}]
+  useEffect(() => {
+    if (!gizmoRots) return;
+    onGizmoConsumed();
+    // arrasto minúsculo arredonda para zero rotações — não gerar mutação vazia
+    if (gizmoRots.rots.length > 0) {
+      send({ rotations: [...orient.rotations, ...gizmoRots.rots] });
+    }
+  }, [gizmoRots]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const desfazer = async () => {
     setBusy(true);
@@ -151,6 +168,14 @@ export default function OrientBar({ state, onStateChange }) {
         ))}
         <button className="btn mini" disabled={busy} onClick={girarLivre}>
           girar
+        </button>
+        <button
+          className={"btn mini" + (gizmoOn ? " ativo" : "")}
+          disabled={busy}
+          onClick={() => onToggleGizmo(!gizmoOn)}
+          title="girar arrastando o gizmo no viewport"
+        >
+          ⟳ gizmo
         </button>
       </span>
 
