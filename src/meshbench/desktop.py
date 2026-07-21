@@ -35,9 +35,11 @@ class DialogBroker:
         Devolve o caminho escolhido ou None (cancelou / timeout de guarda).
         """
         done = threading.Event()
+        cancelled = threading.Event()
         holder: list = [None]
-        self._q.put((kind, holder, done))
+        self._q.put((kind, holder, done, cancelled))
         if not done.wait(self._timeout):
+            cancelled.set()  # expirou: ninguém mais espera este pedido
             return None
         return holder[0]
 
@@ -45,13 +47,16 @@ class DialogBroker:
         """Processa os pedidos pendentes chamando open_dialog(kind) -> str|None.
 
         Chamado periodicamente pelo loop tk (main thread). open_dialog roda na
-        main thread e é quem de fato abre o diálogo nativo.
+        main thread e é quem de fato abre o diálogo nativo. Pedidos que já
+        expiraram (submit deu timeout) são descartados sem abrir diálogo.
         """
         while True:
             try:
-                kind, holder, done = self._q.get_nowait()
+                kind, holder, done, cancelled = self._q.get_nowait()
             except queue.Empty:
                 return
+            if cancelled.is_set():
+                continue  # ninguém espera este pedido — descarta
             try:
                 holder[0] = open_dialog(kind)
             finally:

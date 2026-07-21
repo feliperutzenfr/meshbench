@@ -51,3 +51,13 @@ def test_broker_timeout_returns_none():
     broker = DialogBroker(timeout=0.1)
     # ninguém dá drain → submit devolve None depois do timeout de guarda
     assert broker.submit("file") is None
+
+
+def test_broker_drain_descarta_pedido_expirado():
+    # submit com timeout curto e sem drain -> expira e devolve None
+    broker = DialogBroker(timeout=0.05)
+    assert broker.submit("file") is None
+    # um drain posterior NAO deve abrir dialogo para o pedido ja expirado
+    chamadas = []
+    broker.drain(lambda kind: chamadas.append(kind) or "C:/x.stl")
+    assert chamadas == []
