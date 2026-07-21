@@ -1,6 +1,5 @@
 from pathlib import Path
 
-import pytest
 from fastapi.testclient import TestClient
 
 from meshbench.api.server import create_app, load_session
@@ -69,3 +68,10 @@ def test_post_export_sem_saida(tmp_path, box):
     r = client.post("/api/export")
     assert r.status_code == 200
     assert r.json()["files"] == []
+
+
+def test_patch_export_naming_placeholder_desconhecido_422(tmp_path, box):
+    client, _ = _client(tmp_path, box)
+    r = client.patch("/api/export", json={"naming": "{part}_{group}.dxf"})
+    assert r.status_code == 422
+    assert "desconhecidos" in r.json()["detail"]

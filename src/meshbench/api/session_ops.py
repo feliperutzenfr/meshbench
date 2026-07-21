@@ -5,6 +5,7 @@ reprocesso usa a malha crua em cache — nunca relê o arquivo fonte."""
 import math
 import re
 from pathlib import Path
+from string import Formatter
 
 from meshbench.api.geometry import build_scene_glb, display_records
 from meshbench.core.analyze.components import split_components
@@ -12,7 +13,7 @@ from meshbench.core.analyze.units import UNIT_MM
 from meshbench.core.io.readers import read_mesh
 from meshbench.core.ops import OPS
 from meshbench.core.pipeline import process, write_export
-from meshbench.core.project import Project, rematch
+from meshbench.core.project import DEFAULT_EXPORT, Project, rematch
 from meshbench.core.transform.axes import REMAPS
 
 
@@ -451,18 +452,29 @@ _EXPORT_FORMATS = ("dxf_r12", "stl", "obj")
 
 def _validated_export(current, changes):
     """Monta o dict de export completo a partir do atual + mudanças. ValueError pt-BR."""
-    fmt = changes.get("format", current.get("format", "dxf_r12"))
+    fmt = changes.get("format", current.get("format", DEFAULT_EXPORT["format"]))
     if fmt not in _EXPORT_FORMATS:
         raise ValueError(
             f"formato '{fmt}' desconhecido (disponíveis: {sorted(_EXPORT_FORMATS)})"
         )
-    out_dir = changes.get("out_dir", current.get("out_dir", "out/"))
+    out_dir = changes.get("out_dir", current.get("out_dir", DEFAULT_EXPORT["out_dir"]))
     if not isinstance(out_dir, str) or not out_dir.strip():
         raise ValueError("out_dir deve ser um caminho não vazio")
-    naming = changes.get("naming", current.get("naming", "{project}_{group}.dxf"))
+    naming = changes.get("naming", current.get("naming", DEFAULT_EXPORT["naming"]))
     if not isinstance(naming, str) or "{group}" not in naming:
         raise ValueError(
             "naming deve conter {group} — senão grupos diferentes sobrescrevem o mesmo arquivo"
+        )
+    # Valida que todos os placeholders em naming são conhecidos
+    try:
+        campos = {name for _, name, _, _ in Formatter().parse(naming) if name is not None}
+    except (ValueError, IndexError) as e:
+        raise ValueError(f"naming inválido: {e}") from e
+    desconhecidos = campos - {"project", "group"}
+    if desconhecidos:
+        raise ValueError(
+            f"naming usa placeholders desconhecidos: {sorted(desconhecidos)} "
+            "(disponíveis: {{project}}, {{group}})"
         )
     return {"format": fmt, "out_dir": out_dir, "naming": naming}
 

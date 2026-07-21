@@ -1,4 +1,3 @@
-import pytest
 from fastapi.testclient import TestClient
 
 from meshbench.api.server import create_app, load_session
@@ -60,3 +59,13 @@ def test_open_path_invalido_422(tmp_path, box):
     r = client.post("/api/project/open", json={"path": ""})
     assert r.status_code == 422
     assert "path" in r.json()["detail"]
+
+
+def test_reimport_source_sumido_404(tmp_path, box):
+    client, session = _client(tmp_path, box)
+    # apaga o source em disco → reimport deve dar 404 amigável
+    import os
+    os.remove(session.base_dir / session.project.source["path"])
+    r = client.post("/api/project/reimport")
+    assert r.status_code == 404
+    assert "não encontrado" in r.json()["detail"]

@@ -127,7 +127,6 @@ export default function Inspector({
     setBusy(false);
   };
 
-
   return (
     <aside className="inspector">
       <h2>Inspetor</h2>
