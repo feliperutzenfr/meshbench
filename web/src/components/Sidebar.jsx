@@ -1,6 +1,7 @@
 import { formatFaces } from "../lib/format.js";
 import { OP_LABELS } from "../lib/ops.js";
 import { groupColor } from "../lib/palette.js";
+import ProjectActions from "./ProjectActions.jsx";
 
 function Familia({ c, cor, removida, selecionada, onSelect }) {
   const label = c.user_label || c.auto_class;
@@ -29,7 +30,7 @@ function Familia({ c, cor, removida, selecionada, onSelect }) {
   );
 }
 
-export default function Sidebar({ state, selected, onSelect }) {
+export default function Sidebar({ state, selected, onSelect, onStateChange }) {
   const groupNames = state.groups.map((g) => g.name);
   const porGrupo = new Map(groupNames.map((n) => [n, []]));
   const removidas = [];
@@ -72,6 +73,7 @@ export default function Sidebar({ state, selected, onSelect }) {
           {removidas.map((c) => familia(c, "#666", true))}
         </section>
       )}
+      <ProjectActions onStateChange={onStateChange} />
     </aside>
   );
 }

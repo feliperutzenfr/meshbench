@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { patchComponent, previewComponent, saveRecipe } from "../lib/client.js";
+import { patchComponent, previewComponent } from "../lib/client.js";
 import { formatFaces } from "../lib/format.js";
 import { OP_LABELS, OP_TYPES, coerceParams, opDefaults } from "../lib/ops.js";
 
@@ -127,17 +127,6 @@ export default function Inspector({
     setBusy(false);
   };
 
-  const salvar = async () => {
-    setBusy(true);
-    setMsg(null);
-    try {
-      const r = await saveRecipe();
-      setMsg(`receita salva: ${r.path}`);
-    } catch (e) {
-      setMsg(`erro: ${e.message}`);
-    }
-    setBusy(false);
-  };
 
   return (
     <aside className="inspector">
@@ -216,9 +205,6 @@ export default function Inspector({
           </button>
         </>
       )}
-      <button className="btn" disabled={busy} onClick={salvar}>
-        Salvar receita
-      </button>
       {msg && <p className="msg">{msg}</p>}
     </aside>
   );

@@ -64,7 +64,15 @@ export default function App() {
   if (!state) return <div className="tela-aviso">Carregando…</div>;
   return (
     <div className="app">
-      <Sidebar state={state} selected={selected} onSelect={handleSelect} />
+      <Sidebar
+        state={state}
+        selected={selected}
+        onSelect={handleSelect}
+        onStateChange={(novo) => {
+          setSelected(null);
+          handleStateChange(novo);
+        }}
+      />
       <main className="viewport-wrap">
         <Viewport
           state={state}
