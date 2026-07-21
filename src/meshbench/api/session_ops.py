@@ -4,12 +4,16 @@ reprocesso usa a malha crua em cache — nunca relê o arquivo fonte."""
 
 import math
 import re
+from pathlib import Path
+from string import Formatter
 
 from meshbench.api.geometry import build_scene_glb, display_records
+from meshbench.core.analyze.components import split_components
 from meshbench.core.analyze.units import UNIT_MM
+from meshbench.core.io.readers import read_mesh
 from meshbench.core.ops import OPS
-from meshbench.core.pipeline import process
-from meshbench.core.project import Project
+from meshbench.core.pipeline import process, write_export
+from meshbench.core.project import DEFAULT_EXPORT, Project, rematch
 from meshbench.core.transform.axes import REMAPS
 
 
@@ -441,3 +445,84 @@ def update_origin(session, changes):
             session.project.origin = snapshot
             raise
         _push_undo(session, before)
+
+
+_EXPORT_FORMATS = ("dxf_r12", "stl", "obj")
+
+
+def _validated_export(current, changes):
+    """Monta o dict de export completo a partir do atual + mudanças. ValueError pt-BR."""
+    fmt = changes.get("format", current.get("format", DEFAULT_EXPORT["format"]))
+    if fmt not in _EXPORT_FORMATS:
+        raise ValueError(
+            f"formato '{fmt}' desconhecido (disponíveis: {sorted(_EXPORT_FORMATS)})"
+        )
+    out_dir = changes.get("out_dir", current.get("out_dir", DEFAULT_EXPORT["out_dir"]))
+    if not isinstance(out_dir, str) or not out_dir.strip():
+        raise ValueError("out_dir deve ser um caminho não vazio")
+    naming = changes.get("naming", current.get("naming", DEFAULT_EXPORT["naming"]))
+    if not isinstance(naming, str) or "{group}" not in naming:
+        raise ValueError(
+            "naming deve conter {group} — senão grupos diferentes sobrescrevem o mesmo arquivo"
+        )
+    # Valida que todos os placeholders em naming são conhecidos
+    try:
+        campos = {name for _, name, _, _ in Formatter().parse(naming) if name is not None}
+    except (ValueError, IndexError) as e:
+        raise ValueError(f"naming inválido: {e}") from e
+    desconhecidos = campos - {"project", "group"}
+    if desconhecidos:
+        raise ValueError(
+            f"naming usa placeholders desconhecidos: {sorted(desconhecidos)} "
+            "(disponíveis: {{project}}, {{group}})"
+        )
+    return {"format": fmt, "out_dir": out_dir, "naming": naming}
+
+
+def update_export(session, changes):
+    """Atualiza a configuração de export (formato, out_dir, naming).
+
+    Config inerte: não reprocessa e não entra no desfazer — não muda a geometria,
+    só onde/como os arquivos finais são escritos.
+    """
+    with session.lock:
+        session.project.export = _validated_export(session.project.export, changes)
+
+
+def export_project(session):
+    """Gera os arquivos a partir dos registros já processados da sessão.
+
+    Não reprocessa nem relê o source — usa session.records. Devolve o
+    PipelineResult (files + warnings), incluindo os avisos do último process.
+    """
+    with session.lock:
+        return write_export(
+            session.records, session.project, session.base_dir, session.warnings
+        )
+
+
+def reimport_project(session):
+    """Re-lê o source e re-casa componentes por assinatura, preservando escolhas.
+
+    Re-baseline: descarta desfazer/refazer (os snapshots referem-se à malha antiga
+    em cache) e invalida o cache de GLB. Devolve os avisos do rematch (peças novas
+    a revisar / peças que sumiram do source).
+    """
+    with session.lock:
+        src = Path(session.project.source["path"])
+        if not src.is_absolute():
+            src = session.base_dir / src
+        if not src.exists():
+            raise FileNotFoundError(f"source não encontrado: {src}")
+        mesh = read_mesh(src)
+        new_project, rematch_warnings = rematch(
+            session.project, split_components(mesh)
+        )
+        session.project = new_project
+        session.raw_mesh = mesh
+        reprocess(session)  # usa a nova raw_mesh; seta session.warnings e revision
+        session.warnings = list(session.warnings) + rematch_warnings
+        session.undo_stack.clear()
+        session.redo_stack.clear()
+        session.glb_cache = None
+        return rematch_warnings

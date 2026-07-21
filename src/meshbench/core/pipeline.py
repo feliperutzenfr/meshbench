@@ -237,26 +237,26 @@ def process(project, base_dir, mesh=None):
     return records, warnings
 
 
-def run(project, base_dir):
-    """Executa a receita completa e exporta um arquivo por grupo."""
+def write_export(records, project, base_dir, warnings=None):
+    """Escreve um arquivo por grupo a partir de registros JÁ processados.
+
+    Não relê o source nem reprocessa — recebe os registros prontos (pós-origem).
+    A ordem de emissão é a de DECLARAÇÃO em project.groups, depois qualquer grupo
+    implícito na ordem encontrada. `warnings` inicial (ex.: do process) é copiado
+    e estendido com os avisos de orçamento; a lista recebida não é mutada.
+    """
     base_dir = Path(base_dir)
-    records, warnings = process(project, base_dir)
+    result = PipelineResult(warnings=list(warnings) if warnings else [])
 
     grouped = {}
     for r in records:
         grouped.setdefault(r.group, []).append(r.mesh)
 
-    # ordem de emissão = ordem de DECLARAÇÃO em project.groups, depois qualquer
-    # grupo implícito (criado por peça com grupo não declarado) na ordem em que
-    # foi encontrado — restaura a listagem da Fase 1, em vez da ordem de
-    # encontro das famílias durante o loop de OPS/GROUP acima.
     group_order = [g["name"] for g in project.groups]
     for g in grouped:
         if g not in group_order:
             group_order.append(g)
 
-    # 8. EXPORT — um arquivo por grupo
-    result = PipelineResult(warnings=warnings)
     out_dir = Path(project.export.get("out_dir", "out/"))
     if not out_dir.is_absolute():
         out_dir = base_dir / out_dir
@@ -274,8 +274,15 @@ def run(project, base_dir):
         write_meshes(ms, path, fmt)
         faces = sum(len(m.faces) for m in ms)
         if faces > FACE_BUDGET:
-            warnings.append(
+            result.warnings.append(
                 f"grupo '{g}' tem {faces} faces (> {FACE_BUDGET}) — pode não abrir no Promob"
             )
         result.files.append({"path": str(path), "group": g, "faces": faces})
     return result
+
+
+def run(project, base_dir):
+    """Executa a receita completa e exporta um arquivo por grupo."""
+    base_dir = Path(base_dir)
+    records, warnings = process(project, base_dir)
+    return write_export(records, project, base_dir, warnings)

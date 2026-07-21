@@ -6,6 +6,7 @@ import Inspector from "./components/Inspector.jsx";
 import ScaleBar from "./components/ScaleBar.jsx";
 import OrientBar from "./components/OrientBar.jsx";
 import OriginBar from "./components/OriginBar.jsx";
+import ExportBar from "./components/ExportBar.jsx";
 import { fetchProject } from "./lib/client.js";
 
 export default function App() {
@@ -63,7 +64,15 @@ export default function App() {
   if (!state) return <div className="tela-aviso">Carregando…</div>;
   return (
     <div className="app">
-      <Sidebar state={state} selected={selected} onSelect={handleSelect} />
+      <Sidebar
+        state={state}
+        selected={selected}
+        onSelect={handleSelect}
+        onStateChange={(novo) => {
+          setSelected(null);
+          handleStateChange(novo);
+        }}
+      />
       <main className="viewport-wrap">
         <Viewport
           state={state}
@@ -103,6 +112,7 @@ export default function App() {
         picked={picked}
         onPickConsumed={() => setPicked(null)}
       />
+      <ExportBar state={state} onStateChange={handleStateChange} />
       <StatusBar state={state} />
     </div>
   );

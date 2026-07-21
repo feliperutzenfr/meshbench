@@ -5,12 +5,13 @@ body { font-family: system-ui, sans-serif; background: #16161a; color: #e8e8ec; 
 .app {
   display: grid;
   grid-template-columns: 300px 1fr 280px;
-  grid-template-rows: 1fr auto auto auto auto;
+  grid-template-rows: 1fr auto auto auto auto auto;
   grid-template-areas:
     "sidebar viewport inspector"
     "sidebar scalebar scalebar"
     "sidebar orientbar orientbar"
     "sidebar originbar originbar"
+    "sidebar exportbar exportbar"
     "sidebar statusbar statusbar";
   height: 100%;
 }
@@ -94,3 +95,24 @@ body { font-family: system-ui, sans-serif; background: #16161a; color: #e8e8ec; 
 .dist-origem.suspeito { color: #e15759; }
 .originbar .msg { font-size: 0.78rem; color: #9a9aa5; }
 .originbar .msg.erro { color: #e15759; }
+
+.exportbar { grid-area: exportbar; background: #1e1e24; border-top: 1px solid #2c2c34; padding: 8px 14px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.exportbar .rotulo { font-size: 0.75rem; letter-spacing: 0.06em; color: #9a9aa5; }
+.exportbar select, .exportbar input { background: #16161a; color: #e8e8ec; border: 1px solid #2c2c34; border-radius: 6px; padding: 4px 6px; font-size: 0.82rem; }
+.exportbar input { width: 200px; }
+.export-result { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 0.8rem; }
+.export-file { padding: 2px 8px; border-radius: 6px; }
+.export-file.verde { background: #24361f; color: #8ac26f; }
+.export-file.amarelo { background: #3a2f14; color: #f2b84b; }
+.export-file.vermelho { background: #3a1f20; color: #e15759; }
+.export-dir { color: #9a9aa5; }
+.exportbar .msg { font-size: 0.78rem; color: #9a9aa5; }
+.exportbar .msg.erro { color: #e15759; }
+
+.projeto-acoes { margin-top: 18px; padding-top: 12px; border-top: 1px solid #2c2c34; display: flex; flex-direction: column; gap: 6px; }
+.projeto-acoes .btn { text-align: left; }
+.abrir-receita { display: flex; flex-direction: column; gap: 4px; }
+.abrir-receita input { background: #16161a; color: #e8e8ec; border: 1px solid #2c2c34; border-radius: 6px; padding: 4px 6px; font-size: 0.8rem; }
+.abrir-botoes { display: flex; gap: 4px; }
+.projeto-acoes .msg { font-size: 0.76rem; color: #9a9aa5; word-break: break-all; }
+.projeto-acoes .msg.erro { color: #e15759; }
