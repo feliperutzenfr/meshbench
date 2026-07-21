@@ -149,3 +149,22 @@ def test_apply_orient_eixo_invalido_multiplo_de_90():
     mesh = trimesh.creation.box(extents=[10.0, 20.0, 30.0])
     with pytest.raises(ValueError, match="inválido"):
         apply_orient(mesh, orient)
+
+
+def test_write_export_parte_de_registros_prontos(tmp_path, box):
+    """write_export escreve a partir de registros já processados, sem reler o
+    source nem reprocessar — run() é só process() + write_export()."""
+    from meshbench.core.pipeline import process, write_export
+    from meshbench.core.project import new_project
+    from meshbench.core.analyze.components import split_components
+
+    p = tmp_path / "caixa.stl"
+    box.export(str(p))
+    project = new_project("caixa", p, box, split_components(box))
+    project.export["out_dir"] = str(tmp_path / "out")
+    records, warnings = process(project, tmp_path, mesh=box)
+    res = write_export(records, project, tmp_path, warnings)
+    assert len(res.files) == 1
+    assert res.files[0]["faces"] == 12
+    from pathlib import Path
+    assert Path(res.files[0]["path"]).exists()

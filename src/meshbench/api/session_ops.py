@@ -8,7 +8,7 @@ import re
 from meshbench.api.geometry import build_scene_glb, display_records
 from meshbench.core.analyze.units import UNIT_MM
 from meshbench.core.ops import OPS
-from meshbench.core.pipeline import process
+from meshbench.core.pipeline import process, write_export
 from meshbench.core.project import Project
 from meshbench.core.transform.axes import REMAPS
 
@@ -441,3 +441,46 @@ def update_origin(session, changes):
             session.project.origin = snapshot
             raise
         _push_undo(session, before)
+
+
+_EXPORT_FORMATS = ("dxf_r12", "stl", "obj")
+
+
+def _validated_export(current, changes):
+    """Monta o dict de export completo a partir do atual + mudanças. ValueError pt-BR."""
+    fmt = changes.get("format", current.get("format", "dxf_r12"))
+    if fmt not in _EXPORT_FORMATS:
+        raise ValueError(
+            f"formato '{fmt}' desconhecido (disponíveis: {sorted(_EXPORT_FORMATS)})"
+        )
+    out_dir = changes.get("out_dir", current.get("out_dir", "out/"))
+    if not isinstance(out_dir, str) or not out_dir.strip():
+        raise ValueError("out_dir deve ser um caminho não vazio")
+    naming = changes.get("naming", current.get("naming", "{project}_{group}.dxf"))
+    if not isinstance(naming, str) or "{group}" not in naming:
+        raise ValueError(
+            "naming deve conter {group} — senão grupos diferentes sobrescrevem o mesmo arquivo"
+        )
+    return {"format": fmt, "out_dir": out_dir, "naming": naming}
+
+
+def update_export(session, changes):
+    """Atualiza a configuração de export (formato, out_dir, naming).
+
+    Config inerte: não reprocessa e não entra no desfazer — não muda a geometria,
+    só onde/como os arquivos finais são escritos.
+    """
+    with session.lock:
+        session.project.export = _validated_export(session.project.export, changes)
+
+
+def export_project(session):
+    """Gera os arquivos a partir dos registros já processados da sessão.
+
+    Não reprocessa nem relê o source — usa session.records. Devolve o
+    PipelineResult (files + warnings), incluindo os avisos do último process.
+    """
+    with session.lock:
+        return write_export(
+            session.records, session.project, session.base_dir, session.warnings
+        )

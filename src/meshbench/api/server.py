@@ -11,11 +11,13 @@ from fastapi.staticfiles import StaticFiles
 
 from meshbench.api.geometry import build_scene_glb, display_records
 from meshbench.api.session_ops import (
+    export_project,
     preview_op,
     redo,
     save_recipe,
     undo,
     update_component,
+    update_export,
     update_orient,
     update_origin,
     update_scale,
@@ -96,6 +98,7 @@ def _project_state(session):
             "source": session.project.source,
             "scale": session.project.scale,
             "orient": session.project.orient,
+            "export": session.project.export,
             "origin": session.project.origin,
             "groups": session.project.groups,
             "components": [asdict(c) for c in session.project.components],
@@ -198,6 +201,22 @@ def create_app(session):
         except ValueError as e:
             return JSONResponse(status_code=422, content={"detail": str(e)})
         return JSONResponse(_project_state(session))
+
+    @app.patch("/api/export")
+    def patch_export(changes: dict):
+        try:
+            update_export(session, changes)
+        except ValueError as e:
+            return JSONResponse(status_code=422, content={"detail": str(e)})
+        return JSONResponse(_project_state(session))
+
+    @app.post("/api/export")
+    def post_export():
+        try:
+            result = export_project(session)
+        except ValueError as e:
+            return JSONResponse(status_code=422, content={"detail": str(e)})
+        return JSONResponse({"files": result.files, "warnings": result.warnings})
 
     @app.post("/api/undo")
     def post_undo():
