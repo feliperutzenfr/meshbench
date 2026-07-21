@@ -1,8 +1,9 @@
 import socket
 import threading
 import time
+from pathlib import Path
 
-from meshbench.desktop import DialogBroker, pick_free_port
+from meshbench.desktop import DialogBroker, pick_free_port, _resolve_target
 
 
 def test_pick_free_port_is_bindable():
@@ -61,3 +62,17 @@ def test_broker_drain_descarta_pedido_expirado():
     chamadas = []
     broker.drain(lambda kind: chamadas.append(kind) or "C:/x.stl")
     assert chamadas == []
+
+
+def test_resolve_target_pega_arquivo_existente(tmp_path):
+    f = tmp_path / "a.stl"
+    f.write_text("x")
+    assert _resolve_target(["prog", str(f)]) == f
+
+
+def test_resolve_target_none_sem_arquivo():
+    assert _resolve_target(["prog"]) is None
+
+
+def test_resolve_target_none_para_inexistente():
+    assert _resolve_target(["prog", "nao-existe-xyz.stl"]) is None

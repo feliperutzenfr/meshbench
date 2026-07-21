@@ -8,6 +8,7 @@ o arquivo; também aceita um arquivo passado em argv (arrastado no ícone).
 import queue
 import socket
 import threading
+from pathlib import Path
 
 
 def pick_free_port() -> int:
@@ -61,3 +62,118 @@ class DialogBroker:
                 holder[0] = open_dialog(kind)
             finally:
                 done.set()
+
+
+def _resolve_target(argv):
+    """Primeiro arquivo existente em argv[1:] (arrastado no ícone) ou None."""
+    for a in argv[1:]:
+        p = Path(a)
+        if p.exists() and p.is_file():
+            return p
+    return None
+
+
+def _ask_open_file():
+    """Diálogo nativo de abertura no arranque; devolve o caminho ou None."""
+    from tkinter import filedialog
+
+    chosen = filedialog.askopenfilename(
+        title="MeshBench — escolha o arquivo CAD ou a receita",
+        filetypes=[
+            ("Malhas e receitas", "*.stl *.obj *.ply *.3mf *.dxf *.meshbench.json"),
+            ("Todos os arquivos", "*.*"),
+        ],
+    )
+    return chosen or None
+
+
+def _open_dialog(kind):
+    """Diálogo nativo para os pickers in-app (broker). kind: 'file' | 'folder'."""
+    from tkinter import filedialog
+
+    if kind == "folder":
+        return filedialog.askdirectory(title="MeshBench — escolha a pasta de export") or None
+    return filedialog.askopenfilename(title="MeshBench — escolha um arquivo") or None
+
+
+def main(argv=None):
+    """Entry point do executável: resolve o alvo, sobe o servidor e a UI."""
+    import sys
+    import time
+    import tkinter as tk
+    import webbrowser
+    from tkinter import messagebox
+
+    import uvicorn
+
+    from meshbench.api.server import create_app, load_session, set_dialog_broker
+
+    argv = list(sys.argv if argv is None else argv)
+
+    root = tk.Tk()
+    root.withdraw()  # esconde a janela-raiz enquanto resolve o alvo
+
+    target = _resolve_target(argv)
+    session = None
+    while session is None:
+        if target is None:
+            chosen = _ask_open_file()
+            if not chosen:
+                root.destroy()
+                return 0  # cancelou → sai limpo, sem servidor
+            target = Path(chosen)
+        try:
+            session = load_session(target)
+        except (FileNotFoundError, ValueError, OSError) as e:
+            messagebox.showerror("MeshBench", f"Não consegui abrir o arquivo:\n\n{e}")
+            target = None  # reabre o diálogo
+
+    port = pick_free_port()
+    url = f"http://127.0.0.1:{port}"
+
+    broker = DialogBroker()
+    set_dialog_broker(broker.submit)
+
+    app = create_app(session)
+    config = uvicorn.Config(app, host="127.0.0.1", port=port, log_level="warning")
+    server = uvicorn.Server(config)
+    server_thread = threading.Thread(target=server.run, daemon=True)
+    server_thread.start()
+
+    def _open_when_ready():
+        for _ in range(100):
+            if server.started:
+                webbrowser.open(url)
+                return
+            time.sleep(0.1)
+
+    threading.Thread(target=_open_when_ready, daemon=True).start()
+
+    # janela de status (main thread): mostra a URL e um botão Sair
+    root.deiconify()
+    root.title("MeshBench")
+    tk.Label(root, text="MeshBench está rodando.", font=("Segoe UI", 11)).pack(
+        padx=24, pady=(20, 4)
+    )
+    tk.Label(root, text=url, fg="#0645ad").pack(padx=24, pady=(0, 12))
+
+    def sair():
+        server.should_exit = True
+        server_thread.join(timeout=5.0)
+        set_dialog_broker(None)
+        root.destroy()
+
+    tk.Button(root, text="Sair", command=sair, width=12).pack(pady=(0, 20))
+    root.protocol("WM_DELETE_WINDOW", sair)
+
+    def poll_broker():
+        broker.drain(_open_dialog)
+        root.after(100, poll_broker)
+
+    root.after(100, poll_broker)
+    root.mainloop()
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
