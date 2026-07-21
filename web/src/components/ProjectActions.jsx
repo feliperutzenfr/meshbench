@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { openRecipe, postReimport, saveRecipe } from "../lib/client.js";
+import { openRecipe, pickFile, postReimport, saveRecipe } from "../lib/client.js";
 
 export default function ProjectActions({ onStateChange }) {
   const [busy, setBusy] = useState(false);
@@ -46,6 +46,12 @@ export default function ProjectActions({ onStateChange }) {
     setBusy(false);
   };
 
+  const procurar = async () => {
+    const r = await pickFile();
+    if (r.unavailable || !r.path) return; // sem broker (dev) ou cancelou → mantém o campo digitável
+    setCaminho(r.path);
+  };
+
   return (
     <section className="projeto-acoes">
       <h2>Projeto</h2>
@@ -73,6 +79,9 @@ export default function ProjectActions({ onStateChange }) {
             autoFocus
           />
           <span className="abrir-botoes">
+            <button className="btn mini" disabled={busy} onClick={procurar}>
+              Procurar…
+            </button>
             <button className="btn mini" disabled={busy} onClick={abrir}>
               abrir
             </button>
