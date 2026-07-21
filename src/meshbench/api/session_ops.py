@@ -4,12 +4,15 @@ reprocesso usa a malha crua em cache — nunca relê o arquivo fonte."""
 
 import math
 import re
+from pathlib import Path
 
 from meshbench.api.geometry import build_scene_glb, display_records
+from meshbench.core.analyze.components import split_components
 from meshbench.core.analyze.units import UNIT_MM
+from meshbench.core.io.readers import read_mesh
 from meshbench.core.ops import OPS
 from meshbench.core.pipeline import process, write_export
-from meshbench.core.project import Project
+from meshbench.core.project import Project, rematch
 from meshbench.core.transform.axes import REMAPS
 
 
@@ -484,3 +487,30 @@ def export_project(session):
         return write_export(
             session.records, session.project, session.base_dir, session.warnings
         )
+
+
+def reimport_project(session):
+    """Re-lê o source e re-casa componentes por assinatura, preservando escolhas.
+
+    Re-baseline: descarta desfazer/refazer (os snapshots referem-se à malha antiga
+    em cache) e invalida o cache de GLB. Devolve os avisos do rematch (peças novas
+    a revisar / peças que sumiram do source).
+    """
+    with session.lock:
+        src = Path(session.project.source["path"])
+        if not src.is_absolute():
+            src = session.base_dir / src
+        if not src.exists():
+            raise FileNotFoundError(f"source não encontrado: {src}")
+        mesh = read_mesh(src)
+        new_project, rematch_warnings = rematch(
+            session.project, split_components(mesh)
+        )
+        session.project = new_project
+        session.raw_mesh = mesh
+        reprocess(session)  # usa a nova raw_mesh; seta session.warnings e revision
+        session.warnings = list(session.warnings) + rematch_warnings
+        session.undo_stack.clear()
+        session.redo_stack.clear()
+        session.glb_cache = None
+        return rematch_warnings

@@ -14,6 +14,7 @@ from meshbench.api.session_ops import (
     export_project,
     preview_op,
     redo,
+    reimport_project,
     save_recipe,
     undo,
     update_component,
@@ -52,9 +53,11 @@ class ProjectSession:
     redo_stack: list = field(default_factory=list)
 
 
-def load_session(path):
-    """Carrega uma receita .meshbench.json OU um arquivo de malha (projeto virtual)."""
+def _load_fields(path):
+    """Lê uma receita .json ou um arquivo de malha e devolve os campos derivados."""
     path = Path(path)
+    if not path.exists():
+        raise FileNotFoundError(f"arquivo não encontrado: {path}")
     if path.suffix.lower() == ".json":
         project = Project.load(path)
         base_dir = path.resolve().parent
@@ -70,14 +73,39 @@ def load_session(path):
         base_dir = path.resolve().parent
         recipe_path = (base_dir / f"{path.stem}.meshbench.json").resolve()
     records, warnings = process(project, base_dir, mesh=raw_mesh)
-    return ProjectSession(
-        project=project,
-        base_dir=base_dir,
-        records=records,
-        warnings=warnings,
-        raw_mesh=raw_mesh,
-        recipe_path=recipe_path,
-    )
+    return {
+        "project": project,
+        "base_dir": base_dir,
+        "records": records,
+        "warnings": warnings,
+        "raw_mesh": raw_mesh,
+        "recipe_path": recipe_path,
+    }
+
+
+def load_session(path):
+    """Carrega uma receita .meshbench.json OU um arquivo de malha (projeto virtual)."""
+    return ProjectSession(**_load_fields(path))
+
+
+def open_project(session, path):
+    """Carrega outra receita/malha na sessão existente, substituindo tudo.
+
+    Reseta desfazer/refazer, o cache de GLB e a revision — é um projeto novo. Se a
+    leitura falhar, ergue antes de mutar a sessão (o estado antigo fica intacto).
+    """
+    with session.lock:
+        fields = _load_fields(path)  # pode erguer FileNotFoundError/ValueError
+        session.project = fields["project"]
+        session.base_dir = fields["base_dir"]
+        session.records = fields["records"]
+        session.warnings = fields["warnings"]
+        session.raw_mesh = fields["raw_mesh"]
+        session.recipe_path = fields["recipe_path"]
+        session.revision += 1
+        session.glb_cache = None
+        session.undo_stack.clear()
+        session.redo_stack.clear()
 
 
 def _project_state(session):
@@ -217,6 +245,31 @@ def create_app(session):
         except ValueError as e:
             return JSONResponse(status_code=422, content={"detail": str(e)})
         return JSONResponse({"files": result.files, "warnings": result.warnings})
+
+    @app.post("/api/project/reimport")
+    def post_reimport():
+        try:
+            reimport_project(session)
+        except FileNotFoundError as e:
+            return JSONResponse(status_code=404, content={"detail": str(e)})
+        except ValueError as e:
+            return JSONResponse(status_code=422, content={"detail": str(e)})
+        return JSONResponse(_project_state(session))
+
+    @app.post("/api/project/open")
+    def post_open(body: dict):
+        path = body.get("path")
+        if not isinstance(path, str) or not path.strip():
+            return JSONResponse(
+                status_code=422, content={"detail": "path deve ser um caminho não vazio"}
+            )
+        try:
+            open_project(session, path.strip())
+        except FileNotFoundError as e:
+            return JSONResponse(status_code=404, content={"detail": str(e)})
+        except ValueError as e:
+            return JSONResponse(status_code=422, content={"detail": str(e)})
+        return JSONResponse(_project_state(session))
 
     @app.post("/api/undo")
     def post_undo():
