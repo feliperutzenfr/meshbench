@@ -31,6 +31,25 @@ from meshbench.core.project import Project, new_project
 
 STATIC_DIR = Path(__file__).parent / "static"
 
+# broker de diálogos nativos — só o launcher desktop registra; no dev
+# (meshbench serve) fica None e as rotas de pick respondem 409.
+_dialog_broker = None  # Callable[[str], str | None] | None
+
+
+def set_dialog_broker(fn):
+    """Registra (ou limpa, com None) o broker de diálogos nativos do desktop."""
+    global _dialog_broker
+    _dialog_broker = fn
+
+
+def _pick(kind):
+    if _dialog_broker is None:
+        return JSONResponse(
+            status_code=409,
+            content={"detail": "diálogo nativo indisponível (rode pelo app desktop)"},
+        )
+    return JSONResponse({"path": _dialog_broker(kind)})
+
 
 @dataclass
 class ProjectSession:
@@ -290,6 +309,14 @@ def create_app(session):
     @app.post("/api/project/save")
     def post_save():
         return JSONResponse({"path": str(save_recipe(session))})
+
+    @app.post("/api/pick/file")
+    def post_pick_file():
+        return _pick("file")
+
+    @app.post("/api/pick/folder")
+    def post_pick_folder():
+        return _pick("folder")
 
     if STATIC_DIR.exists():
         app.mount("/", StaticFiles(directory=str(STATIC_DIR), html=True), name="static")
