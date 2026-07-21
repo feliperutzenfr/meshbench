@@ -20,7 +20,7 @@ sugerem — o usuário decide o que cada peça é e o que fazer com ela.
     meshbench apply peça.meshbench.json # aplica e exporta (out/)
     meshbench apply peça.meshbench.json --reimport  # após reexportar do CAD
 
-## Viewport 3D (Fases 2–5)
+## Viewport 3D (Fases 2–6)
 
     meshbench serve peça.stl              # abre o editor 3D no navegador
     meshbench serve receita.meshbench.json
@@ -53,6 +53,16 @@ para levar a origem até lá). A distância da origem até a geometria mais pró
 aparece ao vivo; acima de 50 mm o app avisa **origem flutuando**. O botão
 ⟳ gizmo gira a peça arrastando no viewport: ao soltar, a rotação entra na
 receita já normalizada, com desfazer.
+
+### Export, re-importar e abrir receita (Fase 6)
+
+A barra EXPORTA grava um arquivo por grupo no formato escolhido (DXF R12 3DFACE
+para o Promob, ou STL/OBJ), na pasta configurável (`out/` por padrão, relativa à
+receita; caminho absoluto também vale). Cada grupo mostra a contagem de faces num
+semáforo (verde ≤ 8k, amarelo ≤ 15k, vermelho acima). No bloco **Projeto** da
+barra lateral: salvar a receita, **re-importar** o source (re-lê o CAD e re-casa
+por assinatura, marcando peças novas como "novo — revisar") e **abrir** outra
+receita `.meshbench.json` sem reiniciar o servidor.
 
 ### Desenvolvimento do frontend
 
