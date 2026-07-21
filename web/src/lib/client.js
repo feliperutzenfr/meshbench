@@ -92,6 +92,38 @@ export async function patchOrigin(changes) {
   return r.json();
 }
 
+export async function patchExport(changes) {
+  const r = await checkOk(
+    await fetch("/api/export", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(changes),
+    }),
+  );
+  return r.json();
+}
+
+export async function postExport() {
+  const r = await checkOk(await fetch("/api/export", { method: "POST" }));
+  return r.json();
+}
+
+export async function postReimport() {
+  const r = await checkOk(await fetch("/api/project/reimport", { method: "POST" }));
+  return r.json();
+}
+
+export async function openRecipe(path) {
+  const r = await checkOk(
+    await fetch("/api/project/open", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path }),
+    }),
+  );
+  return r.json();
+}
+
 // rev na query só para furar cache do navegador quando a sessão muda
 export function geometryUrl(revision) {
   return `/api/project/geometry?rev=${revision ?? 0}`;
