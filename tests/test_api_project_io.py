@@ -29,21 +29,21 @@ def test_reimport_preserva_escolhas_e_reseta_undo(tmp_path, box):
     assert state["revision"] > rev0
 
 
-def test_open_troca_projeto_e_reseta(tmp_path, box, small_sphere):
+def test_open_troca_projeto_e_reseta(tmp_path, box, c_channel):
     client, session = _client(tmp_path, box)
     comp = session.project.components[0].id
     client.patch(f"/api/component/{comp}", json={"user_label": "x"})
     assert len(session.undo_stack) == 1
 
-    p2 = tmp_path / "esfera.stl"
-    small_sphere.export(str(p2))
+    p2 = tmp_path / "perfil.stl"
+    c_channel.export(str(p2))
     r = client.post("/api/project/open", json={"path": str(p2)})
     assert r.status_code == 200
     state = r.json()
-    assert state["name"] == "esfera"
+    assert state["name"] == "perfil"
     assert state["can_undo"] is False
     assert len(session.undo_stack) == 0
-    assert session.recipe_path.name == "esfera.meshbench.json"
+    assert session.recipe_path.name == "perfil.meshbench.json"
     # a geometria da nova sessão carrega
     assert client.get("/api/project/geometry").status_code == 200
 
