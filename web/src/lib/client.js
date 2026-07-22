@@ -124,6 +124,22 @@ export async function openRecipe(path) {
   return r.json();
 }
 
+async function pickPath(url) {
+  const r = await fetch(url, { method: "POST" });
+  if (r.status === 409) return { unavailable: true };
+  await checkOk(r);
+  const data = await r.json();
+  return { path: data.path };
+}
+
+export async function pickFile() {
+  return pickPath("/api/pick/file");
+}
+
+export async function pickFolder() {
+  return pickPath("/api/pick/folder");
+}
+
 // rev na query só para furar cache do navegador quando a sessão muda
 export function geometryUrl(revision) {
   return `/api/project/geometry?rev=${revision ?? 0}`;

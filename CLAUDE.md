@@ -16,7 +16,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Viewport (fase 2): `.venv/Scripts/python -m meshbench serve <arquivo>` (porta 8765)
 - Frontend: `npm --prefix web install|run build|run dev|test` (build vai para `src/meshbench/api/static/`, gitignored)
 
-Phases 1 (core+CLI), 2 (viewport), 3 (selection/ops/preview/save), 4 (scale & units), 5 (interactive orientation, interactive origin, rotation gizmo + global undo/redo) and 6 (export UI, re-import & open-recipe UI) are implemented. Next: 7+ (presets por família, batch, empacotamento .exe).
+Phases 1 (core+CLI), 2 (viewport), 3 (selection/ops/preview/save), 4 (scale & units), 5 (interactive orientation, interactive origin, rotation gizmo + global undo/redo) and 6 (export UI, re-import & open-recipe UI) are implemented. Phase 7's `.exe` packaging (PyInstaller one-dir + `scripts/build_exe.ps1`) is implemented and bundle-verified. Next: presets por família, batch.
 
 ## What this project is
 

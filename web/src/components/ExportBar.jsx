@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { patchExport, postExport } from "../lib/client.js";
+import { patchExport, pickFolder, postExport } from "../lib/client.js";
 import { formatFaces } from "../lib/format.js";
 import { FORMAT_LABELS, budgetClass, namingForFormat, validNaming } from "../lib/export.js";
 
@@ -34,6 +34,13 @@ export default function ExportBar({ state, onStateChange }) {
       setMsg(`erro: ${e.message}`);
     }
     setBusy(false);
+  };
+
+  const procurarPasta = async () => {
+    const r = await pickFolder();
+    if (r.unavailable || !r.path) return; // sem broker (dev) ou cancelou
+    setOutDir(r.path);
+    salvarConfig({ out_dir: r.path, naming });
   };
 
   const trocarFormato = (fmt) => {
@@ -84,6 +91,9 @@ export default function ExportBar({ state, onStateChange }) {
         <span>pasta</span>
         <input value={outDir} disabled={busy} onChange={(e) => setOutDir(e.target.value)} onBlur={aplicarConfig} />
       </label>
+      <button className="btn mini" type="button" disabled={busy} onClick={procurarPasta}>
+        Procurar…
+      </button>
       <label className="campo-inline">
         <span>nome</span>
         <input value={naming} disabled={busy} onChange={(e) => setNaming(e.target.value)} onBlur={aplicarConfig} />

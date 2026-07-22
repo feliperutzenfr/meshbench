@@ -78,6 +78,19 @@ receita `.meshbench.json` sem reiniciar o servidor.
 
 A regressão usa os arquivos de `docs/peças exemplo/` (fora do git).
 
+## Empacotamento desktop (.exe)
+
+Para gerar o executável Windows (roda sem Python/npm instalados):
+
+    .venv\Scripts\python -m pip install -e ".[build]"
+    powershell -ExecutionPolicy Bypass -File scripts\build_exe.ps1
+
+O script builda o frontend e roda o PyInstaller (`meshbench.spec`, one-dir),
+gerando `dist/MeshBench/MeshBench.exe` e `dist/MeshBench-<versão>.zip`. Distribua
+o `.zip`: o usuário extrai e dá duplo-clique no `.exe` — um diálogo nativo pede o
+arquivo CAD/receita e o app abre no navegador. Também dá para arrastar um arquivo
+sobre o `.exe`. (Instalador Inno Setup fica para quando o app estabilizar.)
+
 ## Arquitetura
 
 Ver `docs/ARQUITETURA-MESHPREP.md` — documento completo com o conhecimento de

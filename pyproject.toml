@@ -24,6 +24,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0", "httpx2>=0.1"]
+build = ["pyinstaller>=6.0"]
 
 [project.scripts]
 meshbench = "meshbench.cli:main"
