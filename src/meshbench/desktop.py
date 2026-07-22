@@ -99,7 +99,6 @@ def _open_dialog(kind):
 def main(argv=None):
     """Entry point do executável: resolve o alvo, sobe o servidor e a UI."""
     import sys
-    import time
     import tkinter as tk
     import webbrowser
     from tkinter import messagebox
@@ -140,14 +139,30 @@ def main(argv=None):
     server_thread = threading.Thread(target=server.run, daemon=True)
     server_thread.start()
 
-    def _open_when_ready():
-        for _ in range(100):
-            if server.started:
-                webbrowser.open(url)
-                return
-            time.sleep(0.1)
+    # abre o navegador quando o servidor sobe; roda no loop tk (main thread) para
+    # poder avisar com messagebox, com segurança, se o servidor morrer no arranque
+    ready_tries = [0]
 
-    threading.Thread(target=_open_when_ready, daemon=True).start()
+    def check_ready():
+        if server.started:
+            webbrowser.open(url)
+            return
+        if not server_thread.is_alive():
+            messagebox.showerror(
+                "MeshBench",
+                "O servidor não subiu. Feche a janela e tente novamente.",
+            )
+            return
+        ready_tries[0] += 1
+        if ready_tries[0] > 100:  # ~10s ainda sem subir (e a thread viva)
+            messagebox.showerror(
+                "MeshBench",
+                "O servidor demorou demais para responder. Feche e tente de novo.",
+            )
+            return
+        root.after(100, check_ready)
+
+    root.after(100, check_ready)
 
     # janela de status (main thread): mostra a URL e um botão Sair
     root.deiconify()
@@ -167,8 +182,12 @@ def main(argv=None):
     root.protocol("WM_DELETE_WINDOW", sair)
 
     def poll_broker():
-        broker.drain(_open_dialog)
-        root.after(100, poll_broker)
+        # re-arma sempre, mesmo se um diálogo nativo lançar — senão o polling do
+        # broker morreria em silêncio e os pickers in-app travariam até o timeout
+        try:
+            broker.drain(_open_dialog)
+        finally:
+            root.after(100, poll_broker)
 
     root.after(100, poll_broker)
     root.mainloop()
