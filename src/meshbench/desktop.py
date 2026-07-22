@@ -98,6 +98,7 @@ def _open_dialog(kind):
 
 def main(argv=None):
     """Entry point do executável: resolve o alvo, sobe o servidor e a UI."""
+    import os
     import sys
     import tkinter as tk
     import webbrowser
@@ -106,6 +107,14 @@ def main(argv=None):
     import uvicorn
 
     from meshbench.api.server import create_app, load_session, set_dialog_broker
+
+    # PyInstaller --windowed (sem console): sys.stdout/stderr vêm None. O uvicorn
+    # (e qualquer lib que chame .isatty()/.write() neles) quebra com AttributeError
+    # sem isso — armadilha conhecida de apps windowed do PyInstaller.
+    if sys.stdout is None:
+        sys.stdout = open(os.devnull, "w")
+    if sys.stderr is None:
+        sys.stderr = open(os.devnull, "w")
 
     argv = list(sys.argv if argv is None else argv)
 
