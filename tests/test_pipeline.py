@@ -168,3 +168,26 @@ def test_write_export_parte_de_registros_prontos(tmp_path, box):
     assert res.files[0]["faces"] == 12
     from pathlib import Path
     assert Path(res.files[0]["path"]).exists()
+
+
+def test_write_export_nomes_colidentes_erram(tmp_path, box):
+    """Rede de segurança: 2 grupos com um nome sem {group} colidem → erro claro,
+    em vez de sobrescrever em silêncio. A UI/validação evita isso no fluxo normal;
+    isto cobre receita editada à mão / CLI."""
+    import pytest
+    from meshbench.core.pipeline import ProcessedComponent, write_export
+    from meshbench.core.project import new_project
+    from meshbench.core.analyze.components import split_components
+
+    p = tmp_path / "caixa.stl"
+    box.export(str(p))
+    project = new_project("caixa", p, box, split_components(box))
+    project.export["naming"] = "fixo.dxf"  # sem {group}
+    project.export["out_dir"] = str(tmp_path / "out")
+    records = [
+        ProcessedComponent(component_id="a", label="a", group="g1", mesh=box),
+        ProcessedComponent(component_id="b", label="b", group="g2", mesh=box),
+    ]
+    with pytest.raises(ValueError) as e:
+        write_export(records, project, tmp_path)
+    assert "colidem" in str(e.value)

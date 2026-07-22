@@ -265,11 +265,20 @@ def write_export(records, project, base_dir, warnings=None):
     if ext is None:
         raise ValueError(f"formato de exportação '{fmt}' não suportado")
     naming = project.export.get("naming", "{project}_{group}." + ext)
+    seen = {}
     for g in group_order:
         ms = grouped.get(g)
         if not ms:
             continue
         name = naming.format(project=project.name, group=g)
+        # rede de segurança: nomes iguais entre grupos sobrescreveriam o arquivo
+        # em silêncio (a UI já valida, mas receita editada à mão / CLI não)
+        if name in seen:
+            raise ValueError(
+                f"nomes de arquivo colidem: grupos '{seen[name]}' e '{g}' geram "
+                f"'{name}' — inclua {{group}} no nome"
+            )
+        seen[name] = g
         path = out_dir / name
         write_meshes(ms, path, fmt)
         faces = sum(len(m.faces) for m in ms)

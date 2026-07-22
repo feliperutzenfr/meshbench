@@ -37,9 +37,16 @@ describe("namingForFormat", () => {
 });
 
 describe("validNaming", () => {
-  it("exige o placeholder {group}", () => {
-    expect(validNaming("{project}_{group}.dxf")).toBe(true);
-    expect(validNaming("fixo.dxf")).toBe(false);
-    expect(validNaming(null)).toBe(false);
+  it("com 2+ grupos, exige o placeholder {group}", () => {
+    expect(validNaming("{project}_{group}.dxf", 2)).toBe(true);
+    expect(validNaming("fixo.dxf", 2)).toBe(false);
+  });
+  it("com 0 ou 1 grupo, aceita nome livre (não vazio)", () => {
+    expect(validNaming("fixo.dxf", 1)).toBe(true);
+    expect(validNaming("fixo.dxf", 0)).toBe(true);
+    expect(validNaming("   ", 1)).toBe(false);
+  });
+  it("rejeita não-string", () => {
+    expect(validNaming(null, 1)).toBe(false);
   });
 });
