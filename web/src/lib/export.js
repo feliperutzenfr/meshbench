@@ -24,6 +24,12 @@ export function namingForFormat(naming, format) {
   return naming + "." + ext;
 }
 
-export function validNaming(naming) {
-  return typeof naming === "string" && naming.includes("{group}");
+// {group} só é obrigatório com 2+ grupos (2+ arquivos de saída): aí grupos
+// diferentes precisam de nomes diferentes, senão um sobrescreve o arquivo do
+// outro. Com um grupo só não há colisão possível, então o nome pode ser livre
+// (só não pode ser vazio).
+export function validNaming(naming, groupCount = 0) {
+  if (typeof naming !== "string" || !naming.trim()) return false;
+  if (groupCount >= 2) return naming.includes("{group}");
+  return true;
 }

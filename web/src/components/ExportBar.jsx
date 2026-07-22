@@ -9,6 +9,12 @@ function dirDe(caminho) {
   return i >= 0 ? caminho.slice(0, i) : caminho;
 }
 
+function msgNaming(groupCount) {
+  return groupCount >= 2
+    ? "erro: com vários grupos, o nome deve conter {group}"
+    : "erro: informe um nome de arquivo";
+}
+
 export default function ExportBar({ state, onStateChange }) {
   const exp = state.export || {};
   const [busy, setBusy] = useState(false);
@@ -16,6 +22,9 @@ export default function ExportBar({ state, onStateChange }) {
   const [result, setResult] = useState(null); // {files, warnings}
   const [outDir, setOutDir] = useState(exp.out_dir || "out/");
   const [naming, setNaming] = useState(exp.naming || "{project}_{group}.dxf");
+  // nº de grupos de saída (1 arquivo por grupo); {group} no nome só é
+  // obrigatório com 2+ grupos, senão eles sobrescreveriam o mesmo arquivo
+  const groupCount = Object.keys(state.group_faces || {}).length;
 
   // sincroniza os campos com a config vigente; keyed no conteúdo para não
   // descartar edição em andamento em mutações não relacionadas
@@ -50,16 +59,16 @@ export default function ExportBar({ state, onStateChange }) {
   };
 
   const aplicarConfig = () => {
-    if (!validNaming(naming)) {
-      setMsg("erro: nome deve conter {group}");
+    if (!validNaming(naming, groupCount)) {
+      setMsg(msgNaming(groupCount));
       return;
     }
     salvarConfig({ out_dir: outDir, naming });
   };
 
   const gerar = async () => {
-    if (!validNaming(naming)) {
-      setMsg("erro: nome deve conter {group}");
+    if (!validNaming(naming, groupCount)) {
+      setMsg(msgNaming(groupCount));
       return;
     }
     setBusy(true);

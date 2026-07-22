@@ -450,8 +450,12 @@ def update_origin(session, changes):
 _EXPORT_FORMATS = ("dxf_r12", "stl", "obj")
 
 
-def _validated_export(current, changes):
-    """Monta o dict de export completo a partir do atual + mudanças. ValueError pt-BR."""
+def _validated_export(current, changes, group_count=0):
+    """Monta o dict de export completo a partir do atual + mudanças. ValueError pt-BR.
+
+    `group_count` é o nº de grupos de saída da sessão; {group} no naming só é
+    obrigatório com 2+ grupos (senão grupos distintos sobrescrevem o mesmo arquivo).
+    """
     fmt = changes.get("format", current.get("format", DEFAULT_EXPORT["format"]))
     if fmt not in _EXPORT_FORMATS:
         raise ValueError(
@@ -461,9 +465,12 @@ def _validated_export(current, changes):
     if not isinstance(out_dir, str) or not out_dir.strip():
         raise ValueError("out_dir deve ser um caminho não vazio")
     naming = changes.get("naming", current.get("naming", DEFAULT_EXPORT["naming"]))
-    if not isinstance(naming, str) or "{group}" not in naming:
+    if not isinstance(naming, str) or not naming.strip():
+        raise ValueError("naming deve ser um nome de arquivo não vazio")
+    if group_count >= 2 and "{group}" not in naming:
         raise ValueError(
-            "naming deve conter {group} — senão grupos diferentes sobrescrevem o mesmo arquivo"
+            "com 2+ grupos, naming deve conter {group} — "
+            "senão grupos diferentes sobrescrevem o mesmo arquivo"
         )
     # Valida que todos os placeholders em naming são conhecidos
     try:
@@ -486,7 +493,10 @@ def update_export(session, changes):
     só onde/como os arquivos finais são escritos.
     """
     with session.lock:
-        session.project.export = _validated_export(session.project.export, changes)
+        group_count = len({r.group for r in session.records})
+        session.project.export = _validated_export(
+            session.project.export, changes, group_count
+        )
 
 
 def export_project(session):
