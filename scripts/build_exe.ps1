@@ -13,7 +13,7 @@ Write-Host "==> PyInstaller (one-dir)"
     --distpath "$root/dist" --workpath "$root/build"
 
 Write-Host "==> compactando .zip"
-$version = "0.1.0"
+$version = "0.1.1"
 $zip = Join-Path $root "dist/MeshBench-$version.zip"
 if (Test-Path $zip) { Remove-Item $zip }
 Compress-Archive -Path (Join-Path $root "dist/MeshBench/*") -DestinationPath $zip

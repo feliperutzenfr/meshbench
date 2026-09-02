@@ -2,7 +2,7 @@ import meshbench
 
 
 def test_versao():
-    assert meshbench.__version__ == "0.1.0"
+    assert meshbench.__version__ == "0.1.1"
 
 
 def test_dependencias_importam():
