@@ -70,7 +70,7 @@ jobs:
           fi
 
       # guarda o zip mesmo se a publicação falhar — 90 dias
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: MeshBench-exe
