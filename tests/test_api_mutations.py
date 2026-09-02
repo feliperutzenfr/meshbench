@@ -128,3 +128,66 @@ def test_save_grava_receita(tmp_path, small_sphere):
     assert path.endswith("esfera.meshbench.json")
     p = Project.load(path)
     assert p.name == "esfera"
+
+
+def _client_2_pecas(tmp_path, small_sphere, box):
+    import trimesh
+
+    b = box.copy()
+    b.apply_translation([200.0, 0.0, 0.0])
+    p = tmp_path / "duas.stl"
+    trimesh.util.concatenate([small_sphere, b]).export(str(p))
+    session = load_session(p)
+    return TestClient(create_app(session)), session
+
+
+def test_patch_components_aplica_em_lote(tmp_path, small_sphere, box):
+    client, session = _client_2_pecas(tmp_path, small_sphere, box)
+    state0 = client.get("/api/project").json()
+    ids = [c["id"] for c in state0["components"]]
+    assert len(ids) == 2
+    r = client.patch(
+        "/api/components",
+        json={"ids": ids, "changes": {"operation": {"type": "remove", "params": {}}}},
+    )
+    assert r.status_code == 200
+    assert all(c["operation"]["type"] == "remove" for c in r.json()["components"])
+    # uma ação do usuário = um desfazer
+    assert len(session.undo_stack) == 1
+
+
+def test_patch_components_id_inexistente_404(tmp_path, small_sphere, box):
+    client, _ = _client_2_pecas(tmp_path, small_sphere, box)
+    ids = [c["id"] for c in client.get("/api/project").json()["components"]]
+    r = client.patch(
+        "/api/components", json={"ids": [ids[0], "naoexiste"], "changes": {"group": "g"}}
+    )
+    assert r.status_code == 404
+
+
+def test_patch_components_sem_ids_422(tmp_path, small_sphere):
+    client, _ = _client(tmp_path, small_sphere)
+    r = client.patch("/api/components", json={"ids": [], "changes": {"group": "g"}})
+    assert r.status_code == 422
+
+
+def test_estado_marca_quem_ficou_fora_da_saida(tmp_path, small_sphere, box):
+    client, _ = _client_2_pecas(tmp_path, small_sphere, box)
+    ids = [c["id"] for c in client.get("/api/project").json()["components"]]
+    # traz as duas para a saída
+    estado = client.patch(
+        "/api/components",
+        json={
+            "ids": ids,
+            "changes": {"operation": {"type": "keep", "params": {}}, "group": "saida"},
+        },
+    ).json()
+    assert all(c["in_output"] for c in estado["components"])
+    # remover uma tira ela do resultado
+    estado = client.patch(
+        f"/api/component/{ids[0]}",
+        json={"operation": {"type": "remove", "params": {}}},
+    ).json()
+    por_id = {c["id"]: c for c in estado["components"]}
+    assert por_id[ids[0]]["in_output"] is False
+    assert por_id[ids[1]]["in_output"] is True

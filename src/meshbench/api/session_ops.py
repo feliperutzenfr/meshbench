@@ -100,44 +100,59 @@ def _validated_op(op):
 
 
 def update_component(session, comp_id, changes):
-    """Aplica mudanças de operação/grupo/rótulo a uma família e reprocessa.
+    """Aplica mudanças de operação/grupo/rótulo a UMA família e reprocessa."""
+    update_components(session, [comp_id], changes)
 
-    Grupo inexistente é acrescentado a project.groups (role "fixed").
-    Editar uma família limpa needs_review — o usuário acabou de revisá-la.
+
+def update_components(session, comp_ids, changes):
+    """Aplica as mesmas mudanças a N famílias, com UM reprocesso e UM desfazer.
+
+    Em lote de propósito: reprocessar por peça custaria um pipeline inteiro cada
+    (dezenas de segundos em arquivo grande) e encheria a pilha de desfazer com N
+    passos para o que o usuário fez como uma ação só.
+
+    Grupo inexistente é acrescentado a project.groups (role "fixed") uma única
+    vez. Editar uma família limpa needs_review — o usuário acabou de revisá-la.
+    Qualquer falha (id inexistente, reprocesso) desfaz tudo: ou aplica em todas
+    ou em nenhuma.
     """
+    if not comp_ids:
+        raise ValueError("nenhum componente selecionado")
     with session.lock:
         before = session.project.to_dict()
-        entry = _find_entry(session.project, comp_id)
+        # resolve TODOS os ids antes de mutar qualquer um — um id inválido no
+        # meio da lista não pode deixar metade das peças editadas
+        entries = [_find_entry(session.project, cid) for cid in comp_ids]
         groups_len = len(session.project.groups)  # p/ desfazer grupo novo no rollback
-        snapshot = (
-            entry.operation,
-            entry.group,
-            entry.user_label,
-            entry.needs_review,
-        )
-        if "operation" in changes:
-            entry.operation = _validated_op(changes["operation"])
-        if "group" in changes:
-            group = changes["group"]
-            entry.group = group
-            names = [g["name"] for g in session.project.groups]
-            if group is not None and group not in names:
-                session.project.groups.append({"name": group, "role": "fixed"})
-        if "user_label" in changes:
-            entry.user_label = changes["user_label"] or None
-        entry.needs_review = False
+        snapshots = [
+            (e.operation, e.group, e.user_label, e.needs_review) for e in entries
+        ]
+        op = _validated_op(changes["operation"]) if "operation" in changes else None
+        for entry in entries:
+            if op is not None:
+                entry.operation = dict(op)
+            if "group" in changes:
+                group = changes["group"]
+                entry.group = group
+                names = [g["name"] for g in session.project.groups]
+                if group is not None and group not in names:
+                    session.project.groups.append({"name": group, "role": "fixed"})
+            if "user_label" in changes:
+                entry.user_label = changes["user_label"] or None
+            entry.needs_review = False
         try:
             reprocess(session)
         except Exception:
-            # reprocesso falhou — restaura a família E o grupo recém-criado
-            # (se houver), nada fica meio-editado
+            # reprocesso falhou — restaura todas as famílias E os grupos
+            # recém-criados, nada fica meio-editado
             del session.project.groups[groups_len:]
-            (
-                entry.operation,
-                entry.group,
-                entry.user_label,
-                entry.needs_review,
-            ) = snapshot
+            for entry, snap in zip(entries, snapshots):
+                (
+                    entry.operation,
+                    entry.group,
+                    entry.user_label,
+                    entry.needs_review,
+                ) = snap
             raise
         _push_undo(session, before)
 

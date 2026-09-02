@@ -20,7 +20,11 @@ body { font-family: system-ui, sans-serif; background: #16161a; color: #e8e8ec; 
 .viewport { position: absolute; inset: 0; }
 .viewport-erro { position: absolute; inset: 0; display: grid; place-items: center; color: #e15759; font-size: 0.95rem; pointer-events: none; }
 .viewport-aviso { position: absolute; inset: 0; display: grid; place-items: center; color: #9a9aa5; font-size: 0.95rem; pointer-events: none; }
-.statusbar { grid-area: statusbar; background: #1e1e24; border-top: 1px solid #2c2c34; padding: 10px 14px; display: flex; gap: 24px; align-items: center; flex-wrap: wrap; }
+.statusbar { grid-area: statusbar; background: #1e1e24; border-top: 1px solid #2c2c34; padding: 10px 14px; display: flex; flex-direction: column; gap: 8px; align-items: stretch; }
+.statusbar-linha { display: flex; gap: 24px; align-items: center; flex-wrap: wrap; }
+.avisos-toggle { color: #f2b84b; }
+.dica-selecao { font-size: 0.72rem; color: #9a9aa5; margin: 2px 0 8px; }
+.familia.sem-saida { border-left: 2px solid #f2b84b; }
 .tela-aviso { display: grid; place-items: center; height: 100%; font-size: 1.1rem; }
 
 .sidebar h2 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; color: #9a9aa5; margin: 14px 0 6px; }
@@ -36,7 +40,9 @@ body { font-family: system-ui, sans-serif; background: #16161a; color: #e8e8ec; 
 .luz.verde { background: #4caf50; }
 .luz.amarelo { background: #f2b84b; }
 .luz.vermelho { background: #e15759; }
-.avisos { font-size: 0.8rem; color: #f2b84b; }
+/* teto de altura + rolagem própria: a linha do statusbar no grid é `auto`,
+   então uma lista longa de avisos comeria o viewport inteiro */
+.avisos { font-size: 0.8rem; color: #f2b84b; max-height: 6.5em; overflow-y: auto; padding-right: 6px; }
 
 .familia { cursor: pointer; }
 .familia:hover { background: #26262e; }

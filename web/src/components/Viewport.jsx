@@ -27,7 +27,7 @@ function compIdOf(obj) {
 
 export default function Viewport({
   state,
-  selected,
+  selectedIds,
   onSelect,
   preview,
   pickMode,
@@ -47,7 +47,7 @@ export default function Viewport({
   const contentGroupRef = useRef(null); // grupo único com GLB + grid + marcador + eixos da revision atual
   const framedRef = useRef(false); // já enquadramos a câmera alguma vez? (só no primeiro load com geometria)
   const loadGenRef = useRef(0); // geração da carga em voo — ver comentário no efeito de geometria
-  const selectedRef = useRef(selected);
+  const selectedRef = useRef(selectedIds);
   const onSelectRef = useRef(onSelect);
   onSelectRef.current = onSelect;
   const pickModeRef = useRef(pickMode);
@@ -261,7 +261,7 @@ export default function Viewport({
             if (!meshesByComp.has(compId)) meshesByComp.set(compId, []);
             meshesByComp.get(compId).push(obj);
             // seleção pode já existir quando a geometria recarrega (ex.: após Aplicar)
-            if (compId === selectedRef.current) {
+            if (selectedRef.current.includes(compId)) {
               obj.material.emissive.setHex(SELECT_EMISSIVE);
             }
           }
@@ -324,15 +324,16 @@ export default function Viewport({
     };
   }, [state]);
 
-  // destaque emissivo da família selecionada — não recria a cena
+  // destaque emissivo das famílias selecionadas — não recria a cena
   useEffect(() => {
-    selectedRef.current = selected;
+    selectedRef.current = selectedIds;
     for (const [compId, meshes] of meshesByCompRef.current) {
+      const on = selectedIds.includes(compId);
       for (const m of meshes) {
-        m.material.emissive?.setHex(compId === selected ? SELECT_EMISSIVE : 0x000000);
+        m.material.emissive?.setHex(on ? SELECT_EMISSIVE : 0x000000);
       }
     }
-  }, [selected, state]);
+  }, [selectedIds, state]);
 
   // liga/desliga o gizmo — reanexa ao GLB vigente (que muda a cada revision)
   useEffect(() => {

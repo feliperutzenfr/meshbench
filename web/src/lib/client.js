@@ -28,6 +28,19 @@ export async function patchComponent(id, changes) {
   return r.json();
 }
 
+// Lote: uma chamada só para N famílias. O backend reprocessa uma vez e empilha
+// um desfazer — N chamadas de patchComponent custariam N pipelines.
+export async function patchComponents(ids, changes) {
+  const r = await checkOk(
+    await fetch("/api/components", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids, changes }),
+    }),
+  );
+  return r.json();
+}
+
 export async function patchScale(changes) {
   const r = await checkOk(
     await fetch("/api/scale", {

@@ -1,11 +1,14 @@
 import numpy as np
+import pytest
 
 from meshbench.api.server import load_session
 from meshbench.api.session_ops import (
     preview_op,
     reprocess,
     save_recipe,
+    undo,
     update_component,
+    update_components,
 )
 from meshbench.core.project import Project
 
@@ -149,3 +152,63 @@ def test_save_recipe_grava_e_recarrega(tmp_path, small_sphere):
     assert path.exists()
     p2 = Project.load(path)
     assert p2.components[0].user_label == "bolinha"
+
+
+def _session_2_pecas(tmp_path, small_sphere, box):
+    """Sessão com duas famílias distintas (esfera + caixa afastadas)."""
+    import trimesh
+
+    b = box.copy()
+    b.apply_translation([200.0, 0.0, 0.0])
+    p = tmp_path / "duas.stl"
+    trimesh.util.concatenate([small_sphere, b]).export(str(p))
+    return load_session(p)
+
+
+def test_update_components_aplica_em_lote_com_um_so_reprocesso(
+    tmp_path, small_sphere, box
+):
+    s = _session_2_pecas(tmp_path, small_sphere, box)
+    ids = [c.id for c in s.project.components]
+    assert len(ids) == 2
+    rev = s.revision
+    update_components(s, ids, {"operation": {"type": "remove", "params": {}}})
+    # UM reprocesso para as duas peças — não um por peça
+    assert s.revision == rev + 1
+    assert all(c.operation["type"] == "remove" for c in s.project.components)
+
+
+def test_update_components_empilha_um_unico_desfazer(tmp_path, small_sphere, box):
+    s = _session_2_pecas(tmp_path, small_sphere, box)
+    antes = [c.operation["type"] for c in s.project.components]
+    update_components(
+        s,
+        [c.id for c in s.project.components],
+        {"operation": {"type": "remove", "params": {}}},
+    )
+    assert len(s.undo_stack) == 1
+    undo(s)  # um só desfazer devolve as duas peças ao estado original
+    assert [c.operation["type"] for c in s.project.components] == antes
+
+
+def test_update_components_id_inexistente_nao_muta_nada(tmp_path, small_sphere, box):
+    s = _session_2_pecas(tmp_path, small_sphere, box)
+    ids = [c.id for c in s.project.components]
+    antes = s.project.to_dict()
+    with pytest.raises(KeyError):
+        update_components(s, [ids[0], "naoexiste"], {"group": "movel"})
+    assert s.project.to_dict() == antes
+    assert s.undo_stack == []
+
+
+def test_update_components_grupo_novo_uma_vez_so(tmp_path, small_sphere, box):
+    s = _session_2_pecas(tmp_path, small_sphere, box)
+    update_components(s, [c.id for c in s.project.components], {"group": "movel"})
+    nomes = [g["name"] for g in s.project.groups]
+    assert nomes.count("movel") == 1
+
+
+def test_update_components_lista_vazia_e_erro(tmp_path, small_sphere):
+    s = _session(tmp_path, small_sphere)
+    with pytest.raises(ValueError):
+        update_components(s, [], {"group": "movel"})

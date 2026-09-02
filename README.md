@@ -1,5 +1,8 @@
 # MeshBench
 
+[![CI](https://github.com/feliperutzenfr/meshbench/actions/workflows/ci.yml/badge.svg)](https://github.com/feliperutzenfr/meshbench/actions/workflows/ci.yml)
+[![Licença: MIT](https://img.shields.io/badge/licen%C3%A7a-MIT-blue.svg)](LICENSE)
+
 **Prepara malhas 3D exportadas de CAD (SolidWorks, Rhino, Inventor…) para o
 Promob e outros softwares de projeto de móveis** — simplifica, escala, orienta,
 reancora a origem e exporta **DXF R12 (3DFACE)**, o formato que o Promob importa

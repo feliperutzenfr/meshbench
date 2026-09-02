@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Sidebar from "./components/Sidebar.jsx";
 import StatusBar from "./components/StatusBar.jsx";
 import Viewport from "./components/Viewport.jsx";
@@ -8,11 +8,13 @@ import OrientBar from "./components/OrientBar.jsx";
 import OriginBar from "./components/OriginBar.jsx";
 import ExportBar from "./components/ExportBar.jsx";
 import { fetchProject } from "./lib/client.js";
+import { ordemExibicao, proximaSelecao } from "./lib/selection.js";
 
 export default function App() {
   const [state, setState] = useState(null);
   const [error, setError] = useState(null);
-  const [selected, setSelected] = useState(null); // id da família selecionada
+  const [selectedIds, setSelectedIds] = useState([]); // famílias selecionadas
+  const [ancora, setAncora] = useState(null); // último clique sem shift (base do intervalo)
   const [preview, setPreview] = useState(null); // {componentId, url, facesBefore, facesAfter, mostrando}
   const [snapOrigin, setSnapOrigin] = useState(false); // snap de origem armado?
   const [picked, setPicked] = useState(null); // {point: [x,y,z]} clicado no viewport
@@ -23,6 +25,12 @@ export default function App() {
   useEffect(() => {
     fetchProject().then(setState).catch((e) => setError(String(e)));
   }, []);
+
+  // ordem em que as famílias aparecem na lista — base do shift+clique
+  const ordemRef = useRef([]);
+  ordemRef.current = state
+    ? ordemExibicao(state.components, state.groups).map((c) => c.id)
+    : [];
 
   const clearPreview = useCallback(() => {
     setPreview((p) => {
@@ -40,10 +48,31 @@ export default function App() {
     });
   }, []);
 
+  // clique na lista: ctrl alterna, shift pega intervalo, simples substitui
   const handleSelect = useCallback(
-    (id) => {
+    (id, mods = {}) => {
       clearPreview();
-      setSelected(id);
+      setSelectedIds((ids) => {
+        const r = proximaSelecao({
+          ids,
+          ancora,
+          clicado: id,
+          ordem: ordemRef.current,
+          ctrl: mods.ctrl,
+          shift: mods.shift,
+        });
+        setAncora(r.ancora);
+        return r.ids;
+      });
+    },
+    [clearPreview, ancora],
+  );
+
+  const handleSelectMany = useCallback(
+    (ids) => {
+      clearPreview();
+      setSelectedIds(ids);
+      setAncora(ids.length ? ids[ids.length - 1] : null);
     },
     [clearPreview],
   );
@@ -57,6 +86,10 @@ export default function App() {
     [clearPreview],
   );
 
+  const selecionados = state
+    ? state.components.filter((c) => selectedIds.includes(c.id))
+    : [];
+
   const handlePickPoint = useCallback((p) => setPicked({ point: p }), []);
   const handleGizmoRotate = useCallback((rots) => setGizmoRots({ rots }), []);
 
@@ -66,17 +99,17 @@ export default function App() {
     <div className="app">
       <Sidebar
         state={state}
-        selected={selected}
+        selectedIds={selectedIds}
         onSelect={handleSelect}
         onStateChange={(novo) => {
-          setSelected(null);
+          setSelectedIds([]);
           handleStateChange(novo);
         }}
       />
       <main className="viewport-wrap">
         <Viewport
           state={state}
-          selected={selected}
+          selectedIds={selectedIds}
           onSelect={handleSelect}
           preview={preview}
           pickMode={snapOrigin}
@@ -88,7 +121,7 @@ export default function App() {
       </main>
       <Inspector
         state={state}
-        entry={state.components.find((c) => c.id === selected) || null}
+        entries={selecionados}
         preview={preview}
         onStateChange={handleStateChange}
         onPreviewChange={handlePreviewChange}
@@ -113,7 +146,7 @@ export default function App() {
         onPickConsumed={() => setPicked(null)}
       />
       <ExportBar state={state} onStateChange={handleStateChange} />
-      <StatusBar state={state} />
+      <StatusBar state={state} onSelectMany={handleSelectMany} />
     </div>
   );
 }
