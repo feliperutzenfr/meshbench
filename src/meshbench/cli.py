@@ -20,10 +20,10 @@ def _cmd_inspect(args):
     print(f"Unidade sugerida: {unit or 'ambígua'} — {reason}")
     fams = split_components(mesh)
     print(f"\n{len(fams)} famílias de componentes:")
-    print(f"{'id':<5} {'inst':>4} {'faces':>7}  {'classe sugerida':<15} {'op sugerida'}")
+    print(f"{'id':<5} {'inst':>4} {'faces':>7}  {'classe sugerida':<16} {'op sugerida'}")
     for f in fams:
         cls = classify(f.meshes[0])
-        print(f"{f.id:<5} {f.instances:>4} {f.face_count:>7}  {cls:<15} {SUGGESTED_OP[cls]}")
+        print(f"{f.id:<5} {f.instances:>4} {f.face_count:>7}  {cls:<16} {SUGGESTED_OP[cls]}")
     total = sum(f.instances * f.face_count for f in fams)
     print(f"\nTotal: {total} faces")
     return 0

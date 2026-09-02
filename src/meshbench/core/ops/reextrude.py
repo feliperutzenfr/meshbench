@@ -32,7 +32,9 @@ def op_reextrude(mesh, axis=None, n_probe=25, tol=0.4):
     normal[axis] = 1
     amin, amax = mesh.bounds[0, axis], mesh.bounds[1, axis]
 
-    best, best_area = None, -1
+    # best_area começa em 0 (não -1) de propósito: seção vazia soma área 0 e
+    # não pode ser eleita "melhor" — sem polígono não há perfil a extrudar.
+    best, best_area = None, 0.0
     for ap in np.linspace(
         amin + (amax - amin) * 0.1, amax - (amax - amin) * 0.1, n_probe
     ):
