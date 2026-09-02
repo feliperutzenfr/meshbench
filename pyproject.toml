@@ -12,7 +12,7 @@ requires-python = ">=3.11"
 dependencies = [
     "trimesh>=4.0",
     "numpy>=1.26",
-    "scipy>=1.11",
+    "scipy>=1.17.1",
     "shapely>=2.0",
     "mapbox-earcut>=1.0",
     "networkx>=3.0",
