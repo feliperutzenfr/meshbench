@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "meshbench"
-version = "0.1.1"
+version = "0.1.2"
 description = "Editor e conversor de malha 3D para software de projeto de móveis (Promob e outros)"
 readme = "README.md"
 license = { text = "MIT" }
