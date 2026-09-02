@@ -19,7 +19,7 @@ dependencies = [
     "rtree>=1.1",
     "ezdxf>=1.1",
     "fast-simplification>=0.1.7",
-    "lxml>=5.0",
+    "lxml>=6.1.2",
     "fastapi>=0.110",
     "uvicorn>=0.30",
 ]
