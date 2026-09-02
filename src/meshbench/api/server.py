@@ -18,6 +18,7 @@ from meshbench.api.session_ops import (
     save_recipe,
     undo,
     update_component,
+    update_components,
     update_export,
     update_orient,
     update_origin,
@@ -134,8 +135,10 @@ def _project_state(session):
     # concorrente.
     with session.lock:
         totals = {}
+        com_saida = set()
         for r in session.records:
             totals[r.group] = totals.get(r.group, 0) + len(r.mesh.faces)
+            com_saida.add(r.component_id)
         dims = None
         if session.records:
             pts = np.vstack([r.mesh.bounds for r in session.records])
@@ -148,7 +151,13 @@ def _project_state(session):
             "export": session.project.export,
             "origin": session.project.origin,
             "groups": session.project.groups,
-            "components": [asdict(c) for c in session.project.components],
+            # in_output: a família chegou ao resultado? Estruturado de propósito —
+            # a UI marca as peças que sumiram sem o usuário pedir, em vez de ele
+            # ter que ler o id no meio do texto do aviso.
+            "components": [
+                {**asdict(c), "in_output": c.id in com_saida}
+                for c in session.project.components
+            ],
             "warnings": session.warnings,
             "group_faces": totals,
             "face_budget": FACE_BUDGET,
@@ -200,6 +209,21 @@ def create_app(session):
     def patch_component(comp_id: str, changes: dict):
         try:
             update_component(session, comp_id, changes)
+        except KeyError as e:
+            return JSONResponse(status_code=404, content={"detail": str(e).strip("'\"")})
+        except ValueError as e:
+            return JSONResponse(status_code=422, content={"detail": str(e)})
+        return JSONResponse(_project_state(session))
+
+    @app.patch("/api/components")
+    def patch_components(body: dict):
+        """Aplica as mesmas mudanças a várias famílias de uma vez.
+
+        Uma rota separada (e não N chamadas de /api/component) porque cada
+        chamada reprocessa o projeto inteiro e empilha um desfazer.
+        """
+        try:
+            update_components(session, body.get("ids") or [], body.get("changes") or {})
         except KeyError as e:
             return JSONResponse(status_code=404, content={"detail": str(e).strip("'\"")})
         except ValueError as e:

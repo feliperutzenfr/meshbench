@@ -13,7 +13,9 @@ Write-Host "==> PyInstaller (one-dir)"
     --distpath "$root/dist" --workpath "$root/build"
 
 Write-Host "==> compactando .zip"
-$version = "0.1.1"
+# versão vem do pacote — um lugar só, para o zip nunca discordar da tag
+$version = (& $py -c "import meshbench; print(meshbench.__version__)").Trim()
+if (-not $version) { throw "não consegui ler meshbench.__version__" }
 $zip = Join-Path $root "dist/MeshBench-$version.zip"
 if (Test-Path $zip) { Remove-Item $zip }
 Compress-Archive -Path (Join-Path $root "dist/MeshBench/*") -DestinationPath $zip

@@ -1,0 +1,78 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "tag já existente para (re)construir o .exe"
+        required: true
+
+permissions:
+  contents: write # precisa anexar o .zip na release
+
+jobs:
+  exe:
+    name: build do .exe (Windows)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      # a tag manda no que é publicado: se ela discordar da versão do pacote, o
+      # zip sairia com outro nome que o texto da release — falha cedo e claro
+      - name: confere tag x versão do pacote
+        shell: bash
+        run: |
+          pip install -e .
+          tag="${{ inputs.tag || github.ref_name }}"
+          pkg="v$(python -c 'import meshbench; print(meshbench.__version__)')"
+          echo "tag=$tag pacote=$pkg"
+          test "$tag" = "$pkg" || { echo "::error::tag $tag != versão do pacote $pkg"; exit 1; }
+
+      - name: testes antes de empacotar
+        run: |
+          pip install -e ".[dev]"
+          pytest -q
+
+      - name: build do .exe
+        run: |
+          pip install -e ".[build]"
+          npm --prefix web ci
+          powershell -ExecutionPolicy Bypass -File scripts/build_exe.ps1
+
+      - name: anexa o zip na release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="${{ inputs.tag || github.ref_name }}"
+          zip=$(ls dist/MeshBench-*.zip)
+          echo "publicando $zip em $tag"
+          # a release pode já existir (criada à mão com o texto em pt-BR):
+          # nesse caso só sobe o anexo, sem sobrescrever as notas
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" "$zip" --clobber
+          else
+            gh release create "$tag" "$zip" --title "MeshBench $tag" --generate-notes
+          fi
+
+      # guarda o zip mesmo se a publicação falhar — 90 dias
+      - uses: actions/upload-artifact@v5
+        if: always()
+        with:
+          name: MeshBench-exe
+          path: dist/MeshBench-*.zip
+          if-no-files-found: warn
